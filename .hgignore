@@ -1,0 +1,6 @@
+syntax: glob
+*.pyc
+*.db
+*.sql
+notes.txt
+data/verses_full.*

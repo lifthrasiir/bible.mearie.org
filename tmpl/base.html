@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>성경</title>
+	<link rel="stylesheet" href="{{url_for('.static', filename='style.css')}}" />
+</head>
+<body>
+	<header>
+	<h1><a href="{{url_for('.index')}}">성경</a></h1>
+	<nav>
+		<ul>
+			<li><a href="{{url_for('.about')}}">대하여</a></li>
+			<li><a href="#">매일 읽기</a></li>
+			<li><a href="#">노트</a></li>
+			<li><a href="#">로그인</a></li>
+		</ul>
+	</nav>
+	</header>
+	{% block view %}
+	{% endblock %}
+	<footer>
+	<p><a href="http://mearie.org/">메아리</a> 성경 서비스는 <a href="http://mearie.org/about/contact">강 성훈</a>이 만들고 운영합니다. <a href="http://hg.mearie.org/website/bible.mearie.org/">소스 코드</a>를 볼 수 있습니다.</p>
+	</footer>
+</body>
+</html>

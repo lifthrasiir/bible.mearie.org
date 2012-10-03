@@ -1,0 +1,211 @@
+@charset "utf-8";
+
+html {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	width: 800px;
+	font-size: 100%;
+	font-family: serif;
+	text-align: justify;
+	line-height: 1.5;
+	margin: 0 auto;
+	padding: 0;
+}
+
+:lang(ko) {
+	font-family: "나눔명조", "NanumMyeongjo", serif;
+}
+
+:lang(en) {
+	font-family: "Linux Libertine", "Georgia", serif;
+}
+
+@site-hue: 200deg;
+
+header {
+	clear: both;
+	display: block;
+	border-bottom: 0.5em solid hsl(@site-hue, 50%, 50%);
+	color: hsl(@site-hue, 30%, 30%);
+	padding: 1px;
+
+	h1 {
+		font-size: 200%;
+		margin: 0 0.15em;
+		a {
+			padding: 0.25em 0;
+			border-bottom-width: 0.12em;
+		}
+	}
+
+	nav {
+		float: right;
+		line-height: 1;
+		margin-top: -1.2em;
+
+		ul {
+			display: inline;
+		}
+
+		li {
+			display: inline;
+			margin: 0 0.5em;
+		}
+	}
+
+	a {
+		color: hsl(@site-hue, 30%, 30%);
+		padding: 0.25em;
+		border-bottom: 0.25em solid hsl(@site-hue, 50%, 50%);
+		text-decoration: none;
+
+		&:hover, &:active {
+			color: hsl(@site-hue, 30%, 30%);
+			border-bottom-color: hsl(@site-hue, 30%, 30%);
+		}
+	}
+}
+
+footer {
+	clear: both;
+	display: block;
+	background: #eee;
+	padding: 1px;
+}
+
+h2 {
+	font-size: 150%;
+	margin: 0.33em;
+}
+
+p {
+	margin: 0.5em;
+}
+
+dl {
+	margin: 0;
+	dt {
+		margin: 0.5em;
+	}
+	dd {
+		margin: 0.5em 0.5em 0.5em 2em;
+	}
+}
+
+a {
+	color: blue;
+	text-decoration: underline;
+
+	&:hover, &:active {
+		color: red;
+	}
+}
+
+mark {
+	background-color: yellow;
+	box-shadow: yellow 0 0 3px;
+}
+
+section {
+	display: block;
+
+	&.leftside {
+		width: 49%;
+		float: left;
+		margin-right: 1%;
+		border-right: 1px solid gray;
+		padding-top: 1px;
+		padding-bottom: 1px;
+		background: #eef;
+	}
+	&.rightside {
+		margin-left: 49%;
+		border-left: 1px solid gray;
+		padding-top: 1px;
+		padding-bottom: 1px;
+		background: #efe;
+	}
+}
+
+.search {
+	margin: 2%;
+
+	input {
+		font-size: 200%;
+		width: 99%;
+	}
+}
+
+.books {
+	font-size: 85%;
+	margin: 0.5em 2%;
+	width: 96%;
+	border-collapse: collapse;
+
+	td {
+		width: 32%;
+		margin: 0.5em 0;
+		padding: 0;
+	}
+}
+
+.verses {
+	width: 100%;
+	margin: 0.5em 0;
+	border-collapse: collapse;
+
+	th {
+		white-space: nowrap;
+		margin: 0;
+		padding: 0.3em;
+		text-align: right;
+		vertical-align: top;
+	}
+
+	.rowbutton td a {
+		display: block;
+		text-align: center;
+	}
+
+	.cont th span {
+		display: none;
+	}
+
+	td {
+		margin: 0;
+		padding: 0.3em 0.3em;
+		text-align: left;
+		vertical-align: top;
+
+		&.prefix {
+			padding-left: 0.1em;
+			padding-right: 0.1em;
+			width: 1em;
+			text-align: center;
+			background: #eee;
+		}
+
+		&.text {
+			text-align: justify;
+
+			strong { /* 대문자 e.g. LORD */
+				color: #400;
+				font-weight: 900;
+				text-shadow: #800 0 0 5px;
+			}
+			em { /* 첫글자 대문자 e.g. Lord */
+				font-style: normal;
+				font-weight: 700;
+				text-shadow: black 0 0 5px;
+			}
+		}
+	}
+
+	.highlight {
+		border: 0.15em solid #f00;
+	}
+}
+

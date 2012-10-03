@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block view %}
+<table class="verses">
+<thead>
+	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}"><a href="{{url_for('.view_chapter', book=book, chapter=chapter1-1)}}">&uarr; 이전 장으로 가기</a></td></tr>
+</thead>
+{%- for section in sections %}
+<tbody{{section.classes|classes}}>
+	{%- for row in section.verses %} 
+	{% include "verse_row.html" %}
+	{%- endfor %}
+</tbody>
+{%- endfor %}
+<tfoot>
+	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}"><a href="{{url_for('.view_chapter', book=book, chapter=chapter2+1)}}">&darr; 다음 장으로 가기</a></td></tr>
+</thead>
+</table>
+{% endblock %}

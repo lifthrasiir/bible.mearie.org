@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block view %}
+<table class="verses">
+{%- for section in sections %}
+<tbody{{section.classes|classes}}>
+	{%- for row in section.verses %} 
+	{% include "verse_row.html" %}
+	{%- endfor %}
+</tbody>
+{%- endfor %}
+</table>
+{% endblock %}
