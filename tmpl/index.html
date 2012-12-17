@@ -15,7 +15,7 @@
 {%- for row in books|batch(3, none) %}
 	<tr>
 	{%- for book in row if book %}
-	<td><a href="{{url_for('.view_book', book=book.code)}}"><strong>{{book.ko}}</strong> {{book.kor}}</a></td>
+	<td><a href="{{url_for('.view_book', book=book.code)}}"><strong>{{book.abbr_ko}}</strong> {{book.title_ko}}</a></td>
 	{%- endfor %}
 	</tr>
 {%- endfor %}

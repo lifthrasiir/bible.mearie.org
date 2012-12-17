@@ -1,10 +1,10 @@
 {%- if row.text or row.text2 %}
 <tr{{row.classes|classes}}>
-	<th class="position"><span>{{row.book.ko}} {{row.chapter}}:</span>{{row.verse}}</th>
+	<th class="position"><span>{{row.book.abbr_ko}} {{row.chapter}}:</span>{{row.verse}}</th>
 	<td class="prefix">{{row.prefix}}</td>
-	<td class="text" lang="{{version1._lang}}">{{row.text|htmltext(markup=row.markup, query=query)}}</td>
+	<td class="text" lang="{{version1.lang}}">{{row.text|htmltext(markup=row.markup, query=query)}}</td>
 	{%- if version2 %}
-	<td class="text" lang="{{version2._lang}}">{{row.text2|htmltext(markup=row.markup2, query=query)}}</td>
+	<td class="text" lang="{{version2.lang}}">{{row.text2|htmltext(markup=row.markup2, query=query)}}</td>
 	{%- endif %}
 	<td class="links"><a href="{{url_for('.view_verse', book=row.book, chapter=row.chapter, verse=row.verse)}}">#</a></td>
 </tr>

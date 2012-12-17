@@ -1,24 +1,45 @@
 # coding=utf-8
+import json
+import csv
 import sys
 import sqlite3
 import bz2
 import glob
 
-versions = {
-    u'KJV': 'kjv', u'NASV': 'nasv', u'NIV': 'niv', u'NKJV': 'nkjv',
-    u'NLT': 'nlt', u'NRSV': 'nrsv', u'NWT': 'nwt', u'개역': 'krv',
-    u'개정': 'nkrv', u'공동': 'ctb', u'권위역': 'kav', u'표준': 'nksb',
-    u'한킹': 'kkjv', u'현대어': 'tkv', u'현대인': 'klb', u'흠정역': 'kjav',
-}
-books = [
-    u'창', u'출', u'레', u'민', u'신', u'수', u'삿', u'룻', u'삼상', u'삼하',
-    u'왕상', u'왕하', u'대상', u'대하', u'스', u'느', u'에', u'욥', u'시',
-    u'잠', u'전', u'아', u'사', u'렘', u'애', u'겔', u'단', u'호', u'욜', u'암',
-    u'옵', u'욘', u'미', u'나', u'합', u'습', u'학', u'슥', u'말',
-    u'마', u'막', u'눅', u'요', u'행', u'롬', u'고전', u'고후', u'갈', u'엡',
-    u'빌', u'골', u'살전', u'살후', u'딤전', u'딤후', u'딛', u'몬', u'히',
-    u'약', u'벧전', u'벧후', u'요일', u'요이', u'요삼', u'유', u'계',
-]
+def normalize(s):
+    return u''.join(s.split()).upper()
+
+versions = []
+versionaliases = {}
+path = 'data/versions.json'
+with open(path, 'rb') as f:
+    print >>sys.stderr, 'reading %s' % path
+    verdata = json.load(f)
+for line in verdata['versions']:
+    versions.append((line['id'], line['abbr'], line['lang'], int(line['blessed']),
+                     line['year'], line['copyright'],
+                     line['title'].get('ko'), line['title'].get('en')))
+    versionaliases[normalize(line['abbr'])] = line['id']
+for k, v in verdata['aliases'].items():
+    versionaliases[normalize(k)] = v
+
+books = []
+bookaliases = {}
+path = 'data/books.csv'
+with open(path, 'rb') as f:
+    print >>sys.stderr, 'reading %s' % path
+    bookdata = csv.reader(f)
+    keys = bookdata.next() # has a header
+    for line in bookdata:
+        line = dict(map(None, keys, [s.decode('utf-8') for s in line]))
+        bookid = int(line['id'])
+        books.append((bookid, line['code'],
+                      line['abbr_ko'], line['title_ko'],
+                      line['abbr_en'], line['title_en']))
+        bookaliases[normalize(line['abbr_ko'])] = bookid
+        bookaliases[normalize(line['title_ko'])] = bookid
+        bookaliases[normalize(line['abbr_en'])] = bookid
+        bookaliases[normalize(line['title_en'])] = bookid
 
 bcvs = {}
 data = []
@@ -26,17 +47,16 @@ for f in glob.glob('data/verses_*.txt.bz2'):
     i = 0
     for line in bz2.BZ2File(f, 'rb'):
         i += 1
-        if i % 10000 == 0: print >>sys.stderr, '%s: line %d' % (f, i)
+        if i % 10000 == 0: print >>sys.stderr, 'reading %s: line %d' % (f, i)
         line = line.rstrip('\r\n').decode('utf-8')
         if not line: continue
         bv, b, c, v, t = line.split('\t')
-        if bv not in versions: continue
-        b = books.index(b)
+        if bv not in versionaliases: continue
+        b = bookaliases[normalize(b)]
         c = int(c)
         v = int(v)
         bcvs[b, c, v] = None
-        try: bv = versions[bv]
-        except KeyError: continue
+        bv = versionaliases[normalize(bv)]
         assert not any(u'\ue000' <= c <= u'\ue00f' for c in t)
 
         # \ue000..\ue001: italic
@@ -72,10 +92,35 @@ data = sorted((bv, bcvs[bcv][0], text, markup) for bv, bcv, text, markup in data
 
 
 
+print >>sys.stderr, 'committing...'
 conn = sqlite3.connect('bible.db')
 conn.executescript('''
+    create table if not exists versions(
+        version text not null primary key,
+        abbr text not null unique,
+        lang text not null,
+        blessed integer not null,
+        year integer,
+        copyright text,
+        title_ko text,
+        title_en text);
+    create table if not exists versionaliases(
+        alias text not null,
+        version text not null references versions(version),
+        primary key (alias,version));
+    create table if not exists books(
+        book integer not null primary key,
+        code text not null unique,
+        abbr_ko text not null unique,
+        title_ko text not null,
+        abbr_en text not null unique,
+        title_en text not null);
+    create table if not exists bookaliases(
+        alias text not null,
+        book integer not null references books(book),
+        primary key (alias,book));
     create table if not exists verses(
-        book integer not null,
+        book integer not null references books(book),
         chapter integer not null,
         verse integer not null,
         "index" integer not null, -- w.r.t. book
@@ -84,12 +129,16 @@ conn.executescript('''
         unique (book,"index"),
         unique (book,chapter,verse));
     create table if not exists data(
-        version text not null,
+        version text not null references versions(version),
         ordinal integer not null references verses(ordinal),
         "text" text not null,
         markup blob,
         primary key (version,ordinal));
 ''')
+conn.executemany('insert into versions(version,abbr,lang,blessed,year,copyright,title_ko,title_en) values(?,?,?,?,?,?,?,?);', versions)
+conn.executemany('insert into versionaliases(alias,version) values(?,?);', versionaliases.items())
+conn.executemany('insert into books(book,code,abbr_ko,title_ko,abbr_en,title_en) values(?,?,?,?,?,?);', books)
+conn.executemany('insert into bookaliases(alias,book) values(?,?);', bookaliases.items())
 conn.executemany('insert into verses(book,chapter,verse,"index",ordinal) values(?,?,?,?,?);', verses)
 conn.executemany('insert into data(version,ordinal,"text",markup) values(?,?,?,?);', data)
 conn.commit()

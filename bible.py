@@ -4,7 +4,7 @@ from jinja2.utils import Markup
 from werkzeug.routing import BaseConverter, ValidationError
 from werkzeug.datastructures import MultiDict
 from contextlib import contextmanager
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 import re
 import sqlite3
 import urllib
@@ -80,27 +80,137 @@ def filter_htmltext(s, markup=None, query=None):
 
     return Markup().join(ss)
 
+class Entry(sqlite3.Row):
+    def __init__(self, *args, **kwargs):
+        sqlite3.Row.__init__(self, *args, **kwargs)
+        self._primary_field = None
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def set_primary(self, name):
+        assert name in self.keys()
+        self._primary_field = name
+        return self
+
+    def __unicode__(self):
+        if self._primary_field:
+            return unicode(self[self._primary_field])
+        else:
+            return sqlite3.Row.__unicode__(self)
+
+    def __str__(self):
+        if self._primary_field:
+            return str(self[self._primary_field])
+        else:
+            return sqlite3.Row.__str__(self)
+
 @contextmanager
 def database():
     db = sqlite3.connect('bible.db')
-    db.row_factory = sqlite3.Row
+    db.row_factory = Entry
     try:
         yield db
     finally:
         db.close()
 
+# a universal cache for immutable data
+class Mappings(object):
+    def __init__(self):
+        self.reload()
+
+    def normalize(self, s):
+        if not isinstance(s, (str, unicode)): s = str(s)
+        return u''.join(s.split()).upper()
+
+    def reload(self):
+        with database() as db:
+            self.books = []
+            self.bookaliases = {}
+            self.versions = {}
+            self.versionaliases = {}
+            self.blessedversions = {}
+            self.minindices = {}
+            self.maxindices = {}
+            self.minordinals = {}
+            self.maxordinals = {}
+
+            for row in db.execute('select * from books order by book;'):
+                assert len(self.books) == row['book']
+                row.set_primary('code')
+                self.books.append(row)
+                self.bookaliases[row['book']] = row
+            for row in db.execute('select * from bookaliases;'):
+                self.bookaliases[row['alias']] = self.books[row['book']]
+            for row in db.execute('select * from versions;'):
+                row.set_primary('version')
+                self.versions[row['version']] = row
+                if row['blessed']:
+                    self.blessedversions[row['lang']] = row
+            for row in db.execute('select * from versionaliases;'):
+                self.versionaliases[row['alias']] = self.versions[row['version']]
+
+            for row in db.execute('''select book, chapter,
+                                            min("index") as minindex,
+                                            max("index") as maxindex,
+                                            min(ordinal) as minordinal,
+                                            max(ordinal) as maxordinal
+                                     from verses group by book, chapter;'''):
+                assert (row['maxindex'] - row['minindex'] ==
+                        row['maxordinal'] - row['minordinal'])
+                bc = (row['book'], row['chapter'])
+                self.minindices[bc] = row['minindex']
+                self.maxindices[bc] = row['maxindex']
+                self.minordinals[bc] = row['minordinal']
+                self.maxordinals[bc] = row['maxordinal']
+
+            # there are some gaps between consecutive verses in particular versions
+            # in terms of ordinals. so we fetch MAXGAP more verses for previous or
+            # next verses processing.
+            self.maxgap = {}
+            for v in self.versions:
+                ords = db.execute('''select ordinal from data where version=?
+                                     order by ordinal;''', (v,)).fetchall()
+                self.maxgap[v] = max(o2-o1 for (o1,), (o2,) in zip(ords, ords[1:]))
+
+        # TODO
+        self.DEFAULT_VER = self.blessedversions['ko']['version']
+
+    def find_book_by_alias(self, alias):
+        return self.bookaliases[self.normalize(alias)]
+
+    def find_version_by_alias(self, alias):
+        return self.versionaliases[self.normalize(alias)]
+
+    def to_ordinal(self, (b,c,v)):
+        try:
+            minord = self.minordinals[b,c]
+            maxord = self.maxordinals[b,c]
+        except KeyError:
+            raise ValueError('invalid book-chapter-verse pair')
+        ord = minord + (v - 1)
+        if not (minord <= ord <= maxord):
+            raise ValueError('invalid book-chapter-verse pair')
+        return ord
+
+mappings = Mappings()
+
+
 class Normalizable(namedtuple('Normalizable', 'before after')):
     def __str__(self): return str(self.after)
     def __unicode__(self): return unicode(self.after)
     def __getattr__(self, name): return getattr(self.after, name)
 
-sqlite3.register_adapter(mappings.Entry, str)
+sqlite3.register_adapter(Entry, str)
 sqlite3.register_adapter(Normalizable, str)
 
 class BookConverter(BaseConverter):
     def to_python(self, value):
         try:
-            return Normalizable(value, mappings.books.from_any(value))
+            return Normalizable(value, mappings.find_book_by_alias(value))
         except KeyError:
             raise ValidationError()
 
@@ -108,9 +218,6 @@ class BookConverter(BaseConverter):
         return str(value)
 
 app.url_map.converters['book'] = BookConverter
-
-def book_index(b):
-    return mappings.books.indices[str(b)]
 
 def build_query_suffix(*exclude):
     normalized_version = str(g.version1) + (','+str(g.version2) if g.version2 else '')
@@ -130,11 +237,11 @@ def normalize_url(self, **kwargs):
     orig_version = request.args.get('v', '')
     v1, _, v2 = orig_version.partition(',')
     try:
-        g.version1 = mappings.versions.from_any(v1)
+        g.version1 = mappings.find_version_by_alias(v1)
     except Exception:
-        g.version1 = mappings.versions.from_code(mappings.DEFAULT_VER)
+        g.version1 = mappings.versions[mappings.DEFAULT_VER]
     try:
-        g.version2 = mappings.versions.from_any(v2)
+        g.version2 = mappings.find_version_by_alias(v2)
         if g.version1 == g.version2: g.version2 = None
     except Exception:
         g.version2 = None
@@ -203,16 +310,16 @@ def execute_verses_query(db, where='1', args=()):
         return db.execute('''
             select v.*, d1.text as text,  d1.markup as markup,
                         d2.text as text2, d2.markup as markup2
-            from verses v inner join data d1 on v.ordinal=d1.ordinal
-                          inner join data d2 on v.ordinal=d2.ordinal
-            where d1.version=? and d2.version=? and '''+where+'''
+            from verses v left outer join data d1 on d1.version=? and v.ordinal=d1.ordinal
+                          left outer join data d2 on d2.version=? and v.ordinal=d2.ordinal
+            where '''+where+'''
             order by ordinal asc;
         ''', (g.version1, g.version2) + args)
     else:
         return db.execute('''
             select v.*, d.text as text, d.markup as markup
-            from verses v inner join data d on v.ordinal=d.ordinal
-            where d.version=? and '''+where+'''
+            from verses v left outer join data d on d.version=? and v.ordinal=d.ordinal
+            where '''+where+'''
             order by ordinal asc;
         ''', (g.version1,) + args)
 
@@ -233,11 +340,11 @@ def search():
     normalize_url('.search')
 
     # try to redirect to direct links
-    books = ur'(?:%s)' % u'|'.join(book.ko for book in mappings.books)
+    books = ur'(?:%s)' % u'|'.join(book['abbr_ko'] for book in mappings.books)
     m = re.search(ur'^\s*(%s)\s*(?:(\d+:\d+)(?:[-~](\d+(?::\d+)?))?'
                                ur'|(\d+)(?:[-~](\d+))?)\s*$' % books, query)
     if m:
-        book = mappings.books.from_value(m.group(1))
+        book = mappings.find_book_by_alias(m.group(1))
         if m.group(2) is not None:
             chap1, _, verse1 = m.group(2).partition(u':')
             chap1 = int(chap1)
@@ -260,7 +367,7 @@ def search():
         return redirect(url + build_query_suffix('q'))
 
     try:
-        book = mappings.books.from_value(query)
+        book = mappings.find_book_by_alias(query)
     except KeyError:
         book = None
     if book:
@@ -282,7 +389,7 @@ def view_chapter(book, chapter):
 
     with database() as db:
         verses = execute_verses_query(db, 'v.book=? and v.chapter=?',
-                (book_index(book), chapter)).fetchall()
+                (book.book, chapter)).fetchall()
 
     return render_verses('chapters.html', verses,
                          book=book, chapter1=chapter, chapter2=chapter)
@@ -293,7 +400,7 @@ def view_chapters(book, chapter1, chapter2):
 
     with database() as db:
         verses = execute_verses_query(db, 'v.book=? and v.chapter between ? and ?',
-                (book_index(book), chapter1, chapter2)).fetchall()
+                (book.book, chapter1, chapter2)).fetchall()
 
     return render_verses('chapters.html', verses,
                          book=book, chapter1=chapter1, chapter2=chapter2)
@@ -303,8 +410,8 @@ def do_view_verses(book, chapter1, verse1, chapter2, verse2, highlight=None):
         verses = execute_verses_query(db,
                 '''v.book=? and (v.chapter>? or (v.chapter=? and v.verse>=?)) and
                                 (v.chapter<? or (v.chapter=? and v.verse<=?))''',
-                (book_index(book), chapter1, chapter1, verse1,
-                                   chapter2, chapter2, verse2)).fetchall()
+                (book.book, chapter1, chapter1, verse1,
+                            chapter2, chapter2, verse2)).fetchall()
 
     return render_verses('verses.html', verses, highlight=highlight,
                          book=book, chapter1=chapter1, verse1=verse1,
@@ -314,7 +421,7 @@ def do_view_verses(book, chapter1, verse1, chapter2, verse2, highlight=None):
 def view_verse(book, chapter, verse):
     normalize_url('.view_verse', book=book, chapter=chapter, verse=verse)
 
-    booknum = book_index(book)
+    booknum = book.book
     highlight = lambda b,c,v: b==booknum and (c,v)==(chapter,verse)
     return do_view_verses(book, chapter, verse-5, chapter, verse+5, highlight)
 
@@ -323,7 +430,7 @@ def view_verses(book, chapter1, verse1, chapter2, verse2):
     normalize_url('.view_verses', book=book, chapter1=chapter1, verse1=verse1,
                   chapter2=chapter2, verse2=verse2)
 
-    booknum = book_index(book)
+    booknum = book.book
     highlight = lambda b,c,v: b==booknum and (chapter1,verse1)<=(c,v)<=(chapter2,verse2)
     return do_view_verses(book, chapter1, verse1-5, chapter2, verse2+5, highlight)
 
