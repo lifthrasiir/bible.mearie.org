@@ -1,5 +1,5 @@
 {%- if row.text or row.text2 %}
-<tr{{row.classes|classes}}>
+<tr{{' class="%s"'|safe|format(row.classes|join(' ')) if row.classes}}>
 	<th class="position"><span>{{row.book.abbr_ko}} {{row.chapter}}:</span>{{row.verse}}</th>
 	<td class="prefix">{{row.prefix}}</td>
 	<td class="text" lang="{{version1.lang}}">{{row.text|htmltext(markup=row.markup, query=query)}}</td>

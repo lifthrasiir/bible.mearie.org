@@ -17,6 +17,10 @@ def filter_classes(v):
     if not v: return u''
     return Markup(u' class="%s"') % u' '.join(v)
 
+@app.template_filter('book')
+def filter_book(v):
+    return mappings.books[v]
+
 @app.template_filter('htmltext')
 def filter_htmltext(s, markup=None, query=None):
     if not s: return u''
@@ -133,10 +137,11 @@ class Mappings(object):
             self.versions = {}
             self.versionaliases = {}
             self.blessedversions = {}
-            self.minindices = {}
-            self.maxindices = {}
-            self.minordinals = {}
-            self.maxordinals = {}
+
+            # book: (minchapter, maxchapter)
+            self.chapterranges = {}
+            # (book,verse): (minverse, maxverse, deltaindex, deltaordinal)
+            self.verseranges = {}
 
             for row in db.execute('select * from books order by book;'):
                 assert len(self.books) == row['book']
@@ -153,19 +158,27 @@ class Mappings(object):
             for row in db.execute('select * from versionaliases;'):
                 self.versionaliases[row['alias']] = self.versions[row['version']]
 
+            for row in db.execute('''select book,
+                                            min(chapter) as minchapter,
+                                            max(chapter) as maxchapter
+                                     from verses group by book;'''):
+                self.chapterranges[row['book']] = \
+                        (row['minchapter'], row['maxchapter'])
             for row in db.execute('''select book, chapter,
+                                            min(verse) as minverse,
+                                            max(verse) as maxverse,
                                             min("index") as minindex,
                                             max("index") as maxindex,
                                             min(ordinal) as minordinal,
                                             max(ordinal) as maxordinal
                                      from verses group by book, chapter;'''):
-                assert (row['maxindex'] - row['minindex'] ==
+                assert (row['maxverse'] - row['minverse'] ==
+                        row['maxindex'] - row['minindex'] ==
                         row['maxordinal'] - row['minordinal'])
-                bc = (row['book'], row['chapter'])
-                self.minindices[bc] = row['minindex']
-                self.maxindices[bc] = row['maxindex']
-                self.minordinals[bc] = row['minordinal']
-                self.maxordinals[bc] = row['maxordinal']
+                self.verseranges[row['book'], row['chapter']] = \
+                        (row['minverse'], row['maxverse'],
+                         row['minindex'] - row['minverse'],
+                         row['minordinal'] - row['minverse'])
 
             # there are some gaps between consecutive verses in particular versions
             # in terms of ordinals. so we fetch MAXGAP more verses for previous or
@@ -198,6 +211,27 @@ class Mappings(object):
 
 mappings = Mappings()
 
+_triple = namedtuple('triple', 'book chapter verse index ordinal')
+class triple(_triple):
+    def __new__(cls, book, chapter, verse):
+        try:
+            minchapter, maxchapter = mappings.chapterranges[book]
+        except KeyError:
+            raise ValueError('invalid book')
+        if chapter == '$': chapter = maxchapter
+        elif chapter <= 0: chapter = minchapter
+        try:
+            minverse, maxverse, deltaindex, deltaordinal = mappings.verseranges[book, chapter]
+        except KeyError:
+            raise ValueError('invalid chapter')
+        if verse == '$': verse = maxverse
+        elif verse <= 0: verse = minverse
+        if not (minverse <= verse <= maxverse):
+            raise ValueError('invalid verse')
+        index = deltaindex + verse
+        ordinal = deltaordinal + verse
+        return _triple.__new__(cls, book, chapter, verse, index, ordinal)
+
 
 class Normalizable(namedtuple('Normalizable', 'before after')):
     def __str__(self): return str(self.after)
@@ -217,7 +251,23 @@ class BookConverter(BaseConverter):
     def to_url(self, value):
         return str(value)
 
+class IntOrEndConverter(BaseConverter):
+    regex = r'(?:\d+|\$)'
+    num_convert = int
+
+    def to_python(self, value):
+        if value != '$':
+            try: value = int(value)
+            except ValueError: raise ValidationError
+        return value
+
+    def to_url(self, value):
+        if value != '$':
+            value = str(int(value))
+        return value
+
 app.url_map.converters['book'] = BookConverter
+app.url_map.converters['int_or_end'] = IntOrEndConverter
 
 def build_query_suffix(*exclude):
     normalized_version = str(g.version1) + (','+str(g.version2) if g.version2 else '')
@@ -323,6 +373,19 @@ def execute_verses_query(db, where='1', args=()):
             order by ordinal asc;
         ''', (g.version1,) + args)
 
+def split_by_ordinal(verses, minordinal, maxordinal):
+    smaller = []
+    inrange = []
+    larger = []
+    for row in verses:
+        if row['ordinal'] < minordinal:
+            smaller.append(row)
+        elif row['ordinal'] > maxordinal:
+            larger.append(row)
+        else:
+            inrange.append(row)
+    return smaller[-1] if smaller else None, inrange, larger[0] if larger else None
+
 
 @app.route('/')
 def index():
@@ -383,56 +446,72 @@ def search():
 def view_book(book):
     return redirect(url_for('.view_chapter', book=book, chapter=1))
 
-@app.route('/<book:book>/<int:chapter>')
+@app.route('/<book:book>/<int_or_end:chapter>')
 def view_chapter(book, chapter):
     normalize_url('.view_chapter', book=book, chapter=chapter)
+    try:
+        start = triple(book.book, chapter, 0)
+        end = triple(book.book, chapter, '$')
+    except Exception:
+        abort(404)
 
     with database() as db:
-        verses = execute_verses_query(db, 'v.book=? and v.chapter=?',
-                (book.book, chapter)).fetchall()
+        verses = execute_verses_query(db, 'd.ordinal between ? and ?',
+                (start.ordinal-1, end.ordinal+1)).fetchall()
+        prev, verses, next = split_by_ordinal(verses, start.ordinal, end.ordinal)
 
-    return render_verses('chapters.html', verses,
+    return render_verses('chapters.html', verses, prev=prev, next=next,
                          book=book, chapter1=chapter, chapter2=chapter)
 
-@app.route('/<book:book>/<int:chapter1>-<int:chapter2>')
+@app.route('/<book:book>/<int_or_end:chapter1>-<int_or_end:chapter2>')
 def view_chapters(book, chapter1, chapter2):
     normalize_url('.view_chapters', book=book, chapter1=chapter1, chapter2=chapter2)
+    try:
+        start = triple(book.book, chapter1, 0)
+        end = triple(book.book, chapter2, '$')
+    except Exception:
+        abort(404)
 
     with database() as db:
-        verses = execute_verses_query(db, 'v.book=? and v.chapter between ? and ?',
-                (book.book, chapter1, chapter2)).fetchall()
+        verses = execute_verses_query(db, 'v.ordinal between ? and ?',
+                (start.ordinal-1, end.ordinal+1)).fetchall()
+        prev, verses, next = split_by_ordinal(verses, start.ordinal, end.ordinal)
 
-    return render_verses('chapters.html', verses,
+    return render_verses('chapters.html', verses, prev=prev, next=next,
                          book=book, chapter1=chapter1, chapter2=chapter2)
 
-def do_view_verses(book, chapter1, verse1, chapter2, verse2, highlight=None):
+def do_view_verses(book, start, end):
+    bcv1 = (start.book, start.chapter, start.verse)
+    bcv2 = (end.book, end.chapter, end.verse)
+    highlight = lambda b,c,v: bcv1 <= (b,c,v) <= bcv2
+
     with database() as db:
-        verses = execute_verses_query(db,
-                '''v.book=? and (v.chapter>? or (v.chapter=? and v.verse>=?)) and
-                                (v.chapter<? or (v.chapter=? and v.verse<=?))''',
-                (book.book, chapter1, chapter1, verse1,
-                            chapter2, chapter2, verse2)).fetchall()
+        verses = execute_verses_query(db, 'v.book=? and v."index" between ? and ?',
+                (book.book, start.index-5, end.index+5)).fetchall()
 
     return render_verses('verses.html', verses, highlight=highlight,
-                         book=book, chapter1=chapter1, verse1=verse1,
-                         chapter2=chapter2, verse2=verse2)
+                         book=book, chapter1=start.chapter, verse1=start.verse,
+                         chapter2=end.chapter, verse2=end.verse)
 
-@app.route('/<book:book>/<int:chapter>.<int:verse>')
+@app.route('/<book:book>/<int_or_end:chapter>.<int_or_end:verse>')
 def view_verse(book, chapter, verse):
     normalize_url('.view_verse', book=book, chapter=chapter, verse=verse)
+    try:
+        start = end = triple(book.book, chapter, verse)
+    except Exception:
+        abort(404)
+    return do_view_verses(book, start, end)
 
-    booknum = book.book
-    highlight = lambda b,c,v: b==booknum and (c,v)==(chapter,verse)
-    return do_view_verses(book, chapter, verse-5, chapter, verse+5, highlight)
-
-@app.route('/<book:book>/<int:chapter1>.<int:verse1>-<int:chapter2>.<int:verse2>')
+@app.route('/<book:book>/<int_or_end:chapter1>.<int_or_end:verse1>-<int_or_end:chapter2>.<int_or_end:verse2>')
 def view_verses(book, chapter1, verse1, chapter2, verse2):
     normalize_url('.view_verses', book=book, chapter1=chapter1, verse1=verse1,
                   chapter2=chapter2, verse2=verse2)
-
-    booknum = book.book
-    highlight = lambda b,c,v: b==booknum and (chapter1,verse1)<=(c,v)<=(chapter2,verse2)
-    return do_view_verses(book, chapter1, verse1-5, chapter2, verse2+5, highlight)
+    try:
+        start = triple(book.book, chapter1, verse1)
+        end = triple(book.book, chapter2, verse2)
+    except Exception:
+        abort(404)
+    return do_view_verses(book, start, end)
 
 @app.before_request
 def compile_less():
