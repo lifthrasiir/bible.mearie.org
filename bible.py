@@ -8,7 +8,6 @@ from collections import namedtuple, OrderedDict
 import re
 import sqlite3
 import urllib
-import mappings
 
 app = Flask(__name__, static_folder='res', template_folder='tmpl')
 
