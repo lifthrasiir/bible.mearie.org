@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 {% block view %}
+{{other_chapters()}}
 <table class="verses">
 {%- if prev %}
 <thead>
-	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}"><a href="{{url_for('.view_chapter', book=(prev.book|book).code, chapter=prev.chapter)}}">&uarr; 이전 장으로 가기</a></td></tr>
+	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
+		<a href="{{url_for('.view_chapter', book=(prev.book|book).code, chapter=prev.chapter)}}">&uarr; {% if book.book == prev.book %}이전{% else %}{{(prev.book|book).title_ko}}의 마지막{% endif %} 장으로 가기</a>
+	</td></tr>
 </thead>
 {%- endif %}
 {%- for section in sections %}
@@ -15,8 +18,11 @@
 {%- endfor %}
 {%- if next %}
 <tfoot>
-	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}"><a href="{{url_for('.view_chapter', book=(next.book|book).code, chapter=next.chapter)}}">&darr; 다음 장으로 가기</a></td></tr>
+	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
+		<a href="{{url_for('.view_chapter', book=(next.book|book).code, chapter=next.chapter)}}">&darr; {% if book.book == next.book %}다음{% else %}{{(next.book|book).title_ko}}의 첫{% endif %} 장으로 가기</a>
+	</td></tr>
 </thead>
 {%- endif %}
 </table>
+{{other_chapters()}}
 {% endblock %}

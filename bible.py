@@ -9,6 +9,8 @@ import re
 import sqlite3
 import urllib
 
+sqlite3.register_converter('book', int)
+
 app = Flask(__name__, static_folder='res', template_folder='tmpl')
 
 @app.template_filter('classes')
@@ -113,7 +115,7 @@ class Entry(sqlite3.Row):
 
 @contextmanager
 def database():
-    db = sqlite3.connect('bible.db')
+    db = sqlite3.connect('bible.db', detect_types=sqlite3.PARSE_COLNAMES)
     db.row_factory = Entry
     try:
         yield db
@@ -209,6 +211,9 @@ class Mappings(object):
         return ord
 
 mappings = Mappings()
+@app.context_processor
+def inject_mappings():
+    return {'mappings': mappings}
 
 _triple = namedtuple('triple', 'book chapter verse index ordinal')
 class triple(_triple):
@@ -357,7 +362,7 @@ def render_verses(tmpl, verses, **kwargs):
 def execute_verses_query(db, where='1', args=()):
     if g.version2:
         return db.execute('''
-            select v.*, d1.text as text,  d1.markup as markup,
+            select v.book as "book [book]", v.*, d1.text as text,  d1.markup as markup,
                         d2.text as text2, d2.markup as markup2
             from verses v left outer join data d1 on d1.version=? and v.ordinal=d1.ordinal
                           left outer join data d2 on d2.version=? and v.ordinal=d2.ordinal
@@ -366,7 +371,7 @@ def execute_verses_query(db, where='1', args=()):
         ''', (g.version1, g.version2) + args)
     else:
         return db.execute('''
-            select v.*, d.text as text, d.markup as markup
+            select v.book as "book [book]", v.*, d.text as text, d.markup as markup
             from verses v left outer join data d on d.version=? and v.ordinal=d.ordinal
             where '''+where+'''
             order by ordinal asc;

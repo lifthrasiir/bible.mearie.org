@@ -1,3 +1,16 @@
+{%- macro other_chapters() -%}
+	{% with (minchap, maxchap) = mappings.chapterranges[book.book] -%}
+	<div class="chapters"><strong>{{book.title_ko}}</strong>의 다른 장들:
+		{% with sep = joiner(' ') %}{% for chap in range(minchap, maxchap+1) -%}
+			{{sep()}}
+			{%- if chap == chapter1 %}<span class="shown">{% endif -%}
+			<a href="{{url_for('.view_chapter', book=book.code, chapter=chap)}}">{{chap}}</a>
+			{%- if chap == chapter2 %}</span>{% endif -%}
+		{%- endfor %}{% endwith -%}
+	</div>
+	{%- endwith -%}
+{%- endmacro -%}
+
 <!DOCTYPE html>
 <html>
 <head>
