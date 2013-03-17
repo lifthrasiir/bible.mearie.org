@@ -362,7 +362,7 @@ def render_verses(tmpl, verses, **kwargs):
 def execute_verses_query(db, where='1', args=()):
     if g.version2:
         return db.execute('''
-            select v.book as "book [book]", v.*, d1.text as text,  d1.markup as markup,
+            select v.book as "book [book]", v.*, d1.text as text, d1.markup as markup,
                         d2.text as text2, d2.markup as markup2
             from verses v left outer join data d1 on d1.version=? and v.ordinal=d1.ordinal
                           left outer join data d2 on d2.version=? and v.ordinal=d2.ordinal
@@ -460,7 +460,7 @@ def view_chapter(book, chapter):
         abort(404)
 
     with database() as db:
-        verses = execute_verses_query(db, 'd.ordinal between ? and ?',
+        verses = execute_verses_query(db, 'v.ordinal between ? and ?',
                 (start.ordinal-1, end.ordinal+1)).fetchall()
         prev, verses, next = split_by_ordinal(verses, start.ordinal, end.ordinal)
 
