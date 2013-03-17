@@ -154,6 +154,7 @@ class Mappings(object):
             for row in db.execute('select * from versions;'):
                 row.set_primary('version')
                 self.versions[row['version']] = row
+                self.versionaliases[self.normalize(row['version'])] = row
                 if row['blessed']:
                     self.blessedversions[row['lang']] = row
             for row in db.execute('select * from versionaliases;'):
