@@ -1,28 +1,210 @@
 @charset "utf-8";
-html{margin:0;padding:0;}
-body{width:800px;font-size:100%;font-family:serif;text-align:justify;line-height:1.5;margin:0 auto;padding:0;}
-:lang(ko){font-family:"나눔명조","NanumMyeongjo",serif;}
-:lang(en){font-family:"Linux Libertine","Georgia",serif;}
-header{clear:both;display:block;border-bottom:0.5em solid #4095bf;color:#365463;padding:1px;}header h1{font-size:200%;margin:0 0.15em;}header h1 a{padding:0.25em 0;border-bottom-width:0.12em;}
-header nav{float:right;line-height:1;margin-top:-1.2em;}header nav ul{display:inline;}
-header nav li{display:inline;margin:0 0.5em;}
-header a{color:#365463;padding:0.25em;border-bottom:0.25em solid #4095bf;text-decoration:none;}header a:hover,header a:active{color:#365463;border-bottom-color:#365463;}
-footer{clear:both;display:block;background:#eee;padding:1px;}
-h2{font-size:150%;margin:0.33em;}
-p{margin:0.5em;}
-dl{margin:0;}dl dt{margin:0.5em;}
-dl dd{margin:0.5em 0.5em 0.5em 2em;}
-a{color:blue;text-decoration:underline;}a:hover,a:active{color:red;}
-mark{background-color:yellow;box-shadow:yellow 0 0 3px;}
-section{display:block;}section.leftside{width:49%;float:left;margin-right:1%;border-right:1px solid gray;padding-top:1px;padding-bottom:1px;background:#eef;}
-section.rightside{margin-left:49%;border-left:1px solid gray;padding-top:1px;padding-bottom:1px;background:#efe;}
-.search{margin:2%;}.search input{font-size:200%;width:99%;}
-.books{font-size:85%;margin:0.5em 2%;width:96%;border-collapse:collapse;}.books td{width:32%;margin:0.5em 0;padding:0;}
-.chapters{font-size:80%;border:1px solid #4095bf;margin:0.5em 0;padding:0.5em;}.chapters .shown{background-color:yellow;box-shadow:yellow 0 0 3px;}
-.verses{width:100%;margin:0.5em 0;border-collapse:collapse;}.verses th{white-space:nowrap;margin:0;padding:0.3em;text-align:right;vertical-align:top;}
-.verses .rowbutton td a{display:block;text-align:center;}
-.verses .cont th span{display:none;}
-.verses td{margin:0;padding:0.3em 0.3em;text-align:left;vertical-align:top;}.verses td.prefix{padding-left:0.1em;padding-right:0.1em;width:1em;text-align:center;background:#eee;}
-.verses td.text{text-align:justify;}.verses td.text strong{color:#400;font-weight:900;text-shadow:#800 0 0 5px;}
-.verses td.text em{font-style:normal;font-weight:700;text-shadow:black 0 0 5px;}
-.verses .highlight{border:0.15em solid #f00;}
+html {
+  margin: 0;
+  padding: 0;
+}
+body {
+  width: 800px;
+  font-size: 100%;
+  font-family: serif;
+  text-align: justify;
+  line-height: 1.5;
+  margin: 0 auto;
+  padding: 0;
+}
+:lang(ko) {
+  font-family: "나눔명조", "NanumMyeongjo", serif;
+}
+:lang(en) {
+  font-family: "Linux Libertine", "Georgia", serif;
+}
+header {
+  clear: both;
+  display: block;
+  border-bottom: 0.5em solid #4095bf;
+  color: #365463;
+  padding: 1px;
+}
+header h1 {
+  font-size: 200%;
+  margin: 0 0.15em;
+}
+header h1 a {
+  padding: 0.25em 0;
+  border-bottom-width: 0.12em;
+}
+header nav {
+  float: right;
+  line-height: 1;
+  margin-top: -1.2em;
+}
+header nav ul {
+  display: inline;
+}
+header nav li {
+  display: inline;
+  margin: 0 0.5em;
+}
+header a {
+  color: #365463;
+  padding: 0.25em;
+  border-bottom: 0.25em solid #4095bf;
+  text-decoration: none;
+}
+header a:hover, header a:active {
+  color: #365463;
+  border-bottom-color: #365463;
+}
+footer {
+  clear: both;
+  display: block;
+  background: #eee;
+  padding: 1px;
+}
+h2 {
+  font-size: 150%;
+  margin: 0.33em;
+}
+h3 {
+  font-size: 120%;
+  margin: 0.42em;
+}
+p {
+  margin: 0.5em;
+}
+dl {
+  margin: 0;
+}
+dl dt {
+  margin: 0.5em;
+}
+dl dd {
+  margin: 0.5em 0.5em 0.5em 2em;
+}
+a {
+  color: blue;
+  text-decoration: underline;
+}
+a:hover, a:active {
+  color: red;
+}
+mark {
+  background-color: yellow;
+  box-shadow: yellow 0 0 3px;
+}
+section {
+  display: block;
+}
+section.leftside {
+  width: 49%;
+  float: left;
+  margin-right: 1%;
+  border-right: 1px solid gray;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  background: #eef;
+}
+section.rightside {
+  margin-left: 49%;
+  border-left: 1px solid gray;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  background: #efe;
+}
+.search {
+  margin: 2%;
+}
+.search input {
+  font-size: 200%;
+  width: 99%;
+}
+.books {
+  font-size: 85%;
+  margin: 0.5em 2%;
+  width: 96%;
+  border-collapse: collapse;
+}
+.books td {
+  width: 32%;
+  margin: 0.5em 0;
+  padding: 0;
+}
+.chapters {
+  font-size: 80%;
+  border: 1px solid #4095bf;
+  margin: 0.5em 0;
+  padding: 0.5em;
+}
+.chapters .shown {
+  background-color: yellow;
+  box-shadow: yellow 0 0 3px;
+}
+.verses {
+  width: 100%;
+  margin: 0.5em 0;
+  border-collapse: collapse;
+}
+.verses th {
+  white-space: nowrap;
+  margin: 0;
+  padding: 0.3em;
+  text-align: right;
+  vertical-align: top;
+}
+.verses .rowbutton td a {
+  display: block;
+  text-align: center;
+}
+.verses .cont th span {
+  display: none;
+}
+.verses td {
+  margin: 0;
+  padding: 0.3em 0.3em;
+  text-align: left;
+  vertical-align: top;
+}
+.verses td.prefix {
+  padding-left: 0.1em;
+  padding-right: 0.1em;
+  width: 1em;
+  text-align: center;
+  background: #eee;
+}
+.verses td.text {
+  text-align: justify;
+}
+.verses td.text strong {
+  /* 대문자 e.g. LORD */
+
+  color: #400;
+  font-weight: 900;
+  text-shadow: #800 0 0 5px;
+}
+.verses td.text em {
+  /* 첫글자 대문자 e.g. Lord */
+
+  font-style: normal;
+  font-weight: 700;
+  text-shadow: black 0 0 5px;
+}
+.verses .highlight {
+  border: 0.15em solid #f00;
+}
+@media (max-width: 800px) {
+  body {
+    width: auto;
+    margin: 0;
+  }
+  section.leftside {
+    width: 100%;
+    float: none;
+    margin-right: 0;
+    border-right: 0;
+    border-bottom: 1px solid gray;
+  }
+  section.rightside {
+    margin-left: 0;
+    border-left: 0;
+  }
+}

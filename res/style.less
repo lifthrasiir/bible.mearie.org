@@ -81,6 +81,11 @@ h2 {
 	margin: 0.33em;
 }
 
+h3 {
+	font-size: 120%;
+	margin: 0.42em;
+}
+
 p {
 	margin: 0.5em;
 }
@@ -218,6 +223,24 @@ section {
 
 	.highlight {
 		border: 0.15em solid #f00;
+	}
+}
+
+@media (max-width: 800px) {
+	body {
+		width: auto;
+		margin: 0;
+	}
+	section.leftside {
+		width: 100%;
+		float: none;
+		margin-right: 0;
+		border-right: 0;
+		border-bottom: 1px solid gray;
+	}
+	section.rightside {
+		margin-left: 0;
+		border-left: 0;
 	}
 }
 
