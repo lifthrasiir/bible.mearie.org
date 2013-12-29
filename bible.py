@@ -182,16 +182,6 @@ class Mappings(object):
                          row['minindex'] - row['minverse'],
                          row['minordinal'] - row['minverse'])
 
-            # there are some gaps between consecutive verses in particular versions
-            # in terms of ordinals. so we fetch MAXGAP more verses for previous or
-            # next verses processing.
-            self.maxgap = {}
-            for v in self.versions:
-                ords = db.execute('''select ordinal from data where version=?
-                                     order by ordinal;''', (v,)).fetchall()
-                if ords:
-                    self.maxgap[v] = max(o2-o1 for (o1,), (o2,) in zip(ords, ords[1:]))
-
         # TODO
         self.DEFAULT_VER = self.blessedversions['ko']['version']
 

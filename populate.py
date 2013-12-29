@@ -90,6 +90,19 @@ for b, c, v in sorted(bcvs.keys()):
 verses = sorted((b, c, v, i, o) for (b,c,v), (o,i) in bcvs.items())
 data = sorted((bv, bcvs[bcv][0], text, markup) for bv, bcv, text, markup in data)
 
+# there are some gaps between consecutive verses in particular versions
+# in terms of ordinals. so we fetch MAXGAP more verses for previous or
+# next verses processing.
+def append_maxgap(row):
+    bv = row[0]
+    ords = [ordinal for ibv, ordinal, _, _ in data if bv == ibv]
+    assert ords == sorted(ords)
+    if ords:
+        maxgap = max(o2-o1 for o1, o2 in zip(ords, ords[1:]))
+    else:
+        maxgap = 0
+    return row + (maxgap,)
+versions = map(append_maxgap, versions)
 
 
 print >>sys.stderr, 'committing...'
@@ -103,7 +116,8 @@ conn.executescript('''
         year integer,
         copyright text,
         title_ko text,
-        title_en text);
+        title_en text,
+        maxgap integer not null);
     create table if not exists versionaliases(
         alias text not null,
         version text not null references versions(version),
@@ -135,7 +149,7 @@ conn.executescript('''
         markup blob,
         primary key (version,ordinal));
 ''')
-conn.executemany('insert into versions(version,abbr,lang,blessed,year,copyright,title_ko,title_en) values(?,?,?,?,?,?,?,?);', versions)
+conn.executemany('insert into versions(version,abbr,lang,blessed,year,copyright,title_ko,title_en,maxgap) values(?,?,?,?,?,?,?,?,?);', versions)
 conn.executemany('insert into versionaliases(alias,version) values(?,?);', versionaliases.items())
 conn.executemany('insert into books(book,code,abbr_ko,title_ko,abbr_en,title_en) values(?,?,?,?,?,?);', books)
 conn.executemany('insert into bookaliases(alias,book) values(?,?);', bookaliases.items())
