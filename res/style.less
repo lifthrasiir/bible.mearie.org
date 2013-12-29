@@ -48,6 +48,7 @@ header {
 
 		ul {
 			display: inline;
+			padding: 0;
 		}
 
 		li {
@@ -257,6 +258,25 @@ section {
 			.ellipsis {
 				display: inline;
 			}
+		}
+	}
+}
+
+@media (max-width: 500px) {
+	header {
+		h1 {
+			display: block;
+			text-align: center;
+			line-height: 1.5;
+			a {
+				border-bottom-width: 0;
+			}
+		}
+		nav {
+			float: none;
+			text-align: center;
+			line-height: 1.5;
+			margin-top: 0;
 		}
 	}
 }

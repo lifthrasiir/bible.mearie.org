@@ -4,7 +4,7 @@ body{width:800px;font-size:100%;font-family:serif;text-align:justify;line-height
 :lang(ko){font-family:"나눔명조","NanumMyeongjo",serif;}
 :lang(en){font-family:"Linux Libertine","Georgia",serif;}
 header{clear:both;display:block;border-bottom:0.5em solid #4095bf;color:#365463;padding:1px;}header h1{font-size:200%;margin:0 0.15em;}header h1 a{padding:0.25em 0;border-bottom-width:0.12em;}
-header nav{float:right;line-height:1;margin-top:-1.2em;}header nav ul{display:inline;}
+header nav{float:right;line-height:1;margin-top:-1.2em;}header nav ul{display:inline;padding:0;}
 header nav li{display:inline;margin:0 0.5em;}
 header a{color:#365463;padding:0.25em;border-bottom:0.25em solid #4095bf;text-decoration:none;}header a:hover,header a:active{color:#365463;border-bottom-color:#365463;}
 footer{clear:both;display:block;background:#eee;padding:1px;}
@@ -28,4 +28,4 @@ section.rightside{margin-left:49%;border-left:1px solid gray;padding-top:1px;pad
 .verses table td.text{text-align:justify;}.verses table td.text strong{color:#400;font-weight:900;text-shadow:#800 0 0 5px;}
 .verses table td.text em{font-style:normal;font-weight:700;text-shadow:black 0 0 5px;}
 .verses table .highlight{border:0.15em solid #f00;}
-@media (max-width:820px){body{width:auto;margin:0;} section.leftside{width:100%;float:none;margin-right:0;border-right:0;border-bottom:1px solid gray;} section.rightside{margin-left:0;border-left:0;} .verses nav .chapters .omissible{display:none;} .verses nav .chapters .ellipsis{display:inline;}}
+@media (max-width:820px){body{width:auto;margin:0;} section.leftside{width:100%;float:none;margin-right:0;border-right:0;border-bottom:1px solid gray;} section.rightside{margin-left:0;border-left:0;} .verses nav .chapters .omissible{display:none;} .verses nav .chapters .ellipsis{display:inline;}}@media (max-width:500px){header h1{display:block;text-align:center;line-height:1.5;}header h1 a{border-bottom-width:0;} header nav{float:none;text-align:center;line-height:1.5;margin-top:0;}}
