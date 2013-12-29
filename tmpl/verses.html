@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block view %}
-{{other_chapters()}}
-<table class="verses">
+<section class="verses">
+<nav>
+	{{other_chapters()}}
+</nav>
+<table>
 {%- for section in sections %}
 <tbody{{section.classes|classes}}>
 	{%- for row in section.verses %} 
@@ -10,5 +13,8 @@
 </tbody>
 {%- endfor %}
 </table>
-{{other_chapters()}}
+<nav>
+	{{other_chapters()}}
+</nav>
+</section>
 {% endblock %}

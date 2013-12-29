@@ -157,76 +157,83 @@ section {
 	}
 }
 
-.chapters {
-	font-size: 80%;
-	border: 1px solid hsl(@site-hue, 50%, 50%);
-	margin: 0.5em 0;
-	padding: 0.5em;
-
-	.shown {
-		background-color: yellow;
-		box-shadow: yellow 0 0 3px;
-	}
-}
-
 .verses {
-	width: 100%;
-	margin: 0.5em 0;
-	border-collapse: collapse;
+	nav {
+		font-size: 80%;
+		border: 1px solid hsl(@site-hue, 50%, 50%);
+		margin: 0.5em 0;
+		padding: 0.5em;
 
-	th {
-		white-space: nowrap;
-		margin: 0;
-		padding: 0.3em;
-		text-align: right;
-		vertical-align: top;
+		.chapters {
+			.shown {
+				background-color: yellow;
+				box-shadow: yellow 0 0 3px;
+			}
+			.ellipsis {
+				display: none;
+			}
+		}
 	}
 
-	.rowbutton td a {
-		display: block;
-		text-align: center;
-	}
+	table {
+		width: 100%;
+		margin: 0.5em 0;
+		border-collapse: collapse;
 
-	.cont th span {
-		display: none;
-	}
+		th {
+			white-space: nowrap;
+			margin: 0;
+			padding: 0.3em;
+			text-align: right;
+			vertical-align: top;
+		}
 
-	td {
-		margin: 0;
-		padding: 0.3em 0.3em;
-		text-align: left;
-		vertical-align: top;
-
-		&.prefix {
-			padding-left: 0.1em;
-			padding-right: 0.1em;
-			width: 1em;
+		.rowbutton td a {
+			display: block;
 			text-align: center;
-			background: #eee;
 		}
 
-		&.text {
-			text-align: justify;
+		.cont th span {
+			display: none;
+		}
 
-			strong { /* 대문자 e.g. LORD */
-				color: #400;
-				font-weight: 900;
-				text-shadow: #800 0 0 5px;
+		td {
+			margin: 0;
+			padding: 0.3em 0.3em;
+			text-align: left;
+			vertical-align: top;
+
+			&.prefix {
+				padding-left: 0.1em;
+				padding-right: 0.1em;
+				width: 1em;
+				text-align: center;
+				background: #eee;
 			}
-			em { /* 첫글자 대문자 e.g. Lord */
-				font-style: normal;
-				font-weight: 700;
-				text-shadow: black 0 0 5px;
+
+			&.text {
+				text-align: justify;
+
+				strong { /* 대문자 e.g. LORD */
+					color: #400;
+					font-weight: 900;
+					text-shadow: #800 0 0 5px;
+				}
+				em { /* 첫글자 대문자 e.g. Lord */
+					font-style: normal;
+					font-weight: 700;
+					text-shadow: black 0 0 5px;
+				}
 			}
 		}
-	}
 
-	.highlight {
-		border: 0.15em solid #f00;
+		.highlight {
+			border: 0.15em solid #f00;
+		}
 	}
 }
 
-@media (max-width: 800px) {
+@media (max-width: 820px) {
 	body {
 		width: auto;
 		margin: 0;
@@ -241,6 +248,16 @@ section {
 	section.rightside {
 		margin-left: 0;
 		border-left: 0;
+	}
+	.verses nav {
+		.chapters {
+			.omissible {
+				display: none;
+			}
+			.ellipsis {
+				display: inline;
+			}
+		}
 	}
 }
 

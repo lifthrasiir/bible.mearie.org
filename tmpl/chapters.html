@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block view %}
-{{other_chapters()}}
-<table class="verses">
+<section class="verses">
+<nav>
+	{{other_chapters()}}
+</nav>
+<table>
 {%- if prev %}
 <thead>
 	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
@@ -24,5 +27,8 @@
 </thead>
 {%- endif %}
 </table>
-{{other_chapters()}}
+<nav>
+	{{other_chapters()}}
+</nav>
+</section>
 {% endblock %}

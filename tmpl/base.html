@@ -1,12 +1,24 @@
+
 {%- macro other_chapters() -%}
 	{% with (minchap, maxchap) = mappings.chapterranges[book.book] -%}
 	<div class="chapters"><strong>{{book.title_ko}}</strong>의 다른 장들:
-		{% with sep = joiner(' ') %}{% for chap in range(minchap, maxchap+1) -%}
-			{{sep()}}
-			{%- if chap == chapter1 %}<span class="shown">{% endif -%}
-			<a href="{{url_for('.view_chapter', book=book.code, chapter=chap)}}">{{chap}}</a>
-			{%- if chap == chapter2 %}</span>{% endif -%}
-		{%- endfor %}{% endwith -%}
+		{% with sep = joiner(' ') -%}
+		{%- macro chapters(c1,c2) -%}
+			<a href="{{url_for('.view_chapter', book=book.code, chapter=c1)}}">{{c1}}</a>
+			{%- if c1+1 < c2+1 -%}
+			{%- if c1+1 < c2 -%}
+			<span class="omissible">{% for c in range(c1+1, c2) -%}
+				{{sep()}}<a href="{{url_for('.view_chapter', book=book.code, chapter=c)}}">{{c}}</a>
+			{%- endfor %}</span>
+			<span class="ellipsis">{{sep()}}&hellip;</span>
+			{%- endif -%}
+			{{sep()}}<a href="{{url_for('.view_chapter', book=book.code, chapter=c2)}}">{{c2}}</a>
+			{%- endif -%}
+		{%- endmacro -%}
+		{%- if minchap < chapter1 %}{{sep()}}{{chapters(minchap, chapter1-1)}}{% endif -%}
+		{{sep()}}<span class="shown">{{chapters(chapter1, chapter2)}}</span>
+		{%- if chapter2+1 < maxchap+1 %}{{sep()}}{{chapters(chapter2+1, maxchap)}}{% endif -%}
+		{%- endwith -%}
 	</div>
 	{%- endwith -%}
 {%- endmacro -%}
