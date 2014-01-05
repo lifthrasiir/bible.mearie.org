@@ -457,7 +457,7 @@ def view_chapter(book, chapter):
         prev, verses, next = split_by_ordinal(verses, start.ordinal, end.ordinal)
 
     return render_verses('chapters.html', verses, prev=prev, next=next,
-                         book=book, chapter1=chapter, chapter2=chapter)
+                         book=book, chapter1=start.chapter, chapter2=end.chapter)
 
 @app.route('/<book:book>/<int_or_end:chapter1>-<int_or_end:chapter2>')
 def view_chapters(book, chapter1, chapter2):
@@ -474,7 +474,7 @@ def view_chapters(book, chapter1, chapter2):
         prev, verses, next = split_by_ordinal(verses, start.ordinal, end.ordinal)
 
     return render_verses('chapters.html', verses, prev=prev, next=next,
-                         book=book, chapter1=chapter1, chapter2=chapter2)
+                         book=book, chapter1=start.chapter, chapter2=end.chapter)
 
 def do_view_verses(book, start, end):
     bcv1 = (start.book, start.chapter, start.verse)
