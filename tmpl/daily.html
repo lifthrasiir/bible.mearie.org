@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block view %}
+<section class="verses">
+<nav>
+	{{daily.month}}월 {{daily.day}}일에 읽을 성경 말씀은 {{verse_range(daily.start, daily.end)}}입니다.
+</nav>
+<table>
+{%- for section in sections %}
+<tbody{{section.classes|classes}}>
+	{%- for row in section.verses %} 
+	{% include "verse_row.html" %}
+	{%- endfor %}
+</tbody>
+{%- endfor %}
+</table>
+</section>
+{% endblock %}

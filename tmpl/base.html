@@ -1,3 +1,11 @@
+{%- macro verse_range(start,end) -%}
+	<strong>{{(start.book|book).title_ko}} {{start.chapter}}장 {{start.verse}}절</strong>
+	{%- if start != end %}부터
+	<strong>{% if start.book != end.book %}{{(end.book|book).title_ko}} {% endif -%}
+	{%- if start.book_and_chapter != end.book_and_chapter %}{{end.chapter}}장 {% endif -%}
+	{{end.verse}}절</strong>까지
+	{%- endif -%}
+{%- endmacro -%}
 
 {%- macro other_chapters() -%}
 	{% with (minchap, maxchap) = mappings.chapterranges[book.book] -%}
@@ -37,7 +45,6 @@
 	<nav>
 		<ul>
 			<li><a href="{{url_for('.about')}}">대하여</a></li>
-			<li><a href="#">매일 읽기</a></li>
 			<li><a href="#">노트</a></li>
 			<li><a href="#">로그인</a></li>
 		</ul>

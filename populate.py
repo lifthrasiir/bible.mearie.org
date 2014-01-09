@@ -82,13 +82,17 @@ data.sort()
 
 ordinal = 0
 index = {}
+minverse = {}
+maxverse = {}
 for b, c, v in sorted(bcvs.keys()):
     idx = index.get(b, 0)
-    bcvs[b, c, v] = ordinal, idx
+    bcvs[b, c, v] = idx, ordinal
+    if (b, c) not in minverse or minverse[b, c] > v: minverse[b, c] = v
+    if (b, c) not in maxverse or maxverse[b, c] < v: maxverse[b, c] = v
     ordinal += 1
     index[b] = idx + 1
-verses = sorted((b, c, v, i, o) for (b,c,v), (o,i) in bcvs.items())
-data = sorted((bv, bcvs[bcv][0], text, markup) for bv, bcv, text, markup in data)
+verses = sorted((b, c, v, i, o) for (b,c,v), (i,o) in bcvs.items())
+data = sorted((bv, bcvs[bcv][1], text, markup) for bv, bcv, text, markup in data)
 
 # there are some gaps between consecutive verses in particular versions
 # in terms of ordinals. so we fetch MAXGAP more verses for previous or
@@ -103,6 +107,39 @@ def append_maxgap(row):
         maxgap = 0
     return row + (maxgap,)
 versions = map(append_maxgap, versions)
+
+path = 'data/daily.json'
+topics = []
+with open(path, 'rb') as f:
+    print >>sys.stderr, 'reading %s' % path
+    dailydata = json.load(f)
+for code, ranges in sorted(dailydata.items()):
+    ordranges = []
+    while ranges:
+        book = bookaliases[normalize(ranges[0])]
+        if len(ranges) > 3 and isinstance(ranges[3], (int,long)):
+            chapter1 = ranges[1]
+            verse1 = ranges[2]
+            chapter2 = ranges[3]
+            verse2 = ranges[4]
+            ranges = ranges[5:]
+        else:
+            chapter1 = ranges[1]
+            verse1 = minverse[book, chapter1]
+            chapter2 = ranges[2]
+            verse2 = maxverse[book, chapter2]
+            ranges = ranges[3:]
+        _, ordinal1 = bcvs[book, chapter1, verse1]
+        _, ordinal2 = bcvs[book, chapter2, verse2]
+        ordranges.append((ordinal1, ordinal2))
+    ordranges.sort()
+    for i in xrange(len(ordranges)-2, -1, -1):
+        assert ordranges[i][1] < ordranges[i+1][0]
+        if ordranges[i][1] + 1 == ordranges[i+1][0]:
+            ordranges[i] = (ordranges[i][0], ordranges[i+1][1])
+            ordranges[i+1] = None
+    for ordinal1, ordinal2 in filter(None, ordranges):
+        topics.append(('daily', code, ordinal1, ordinal2))
 
 
 print >>sys.stderr, 'committing...'
@@ -148,6 +185,13 @@ conn.executescript('''
         "text" text not null,
         markup blob,
         primary key (version,ordinal));
+    create table if not exists topics(
+        kind text not null,
+        code text not null,
+        ordinal1 integer not null references verses(ordinal),
+        ordinal2 integer not null references verses(ordinal),
+        check (ordinal1 <= ordinal2),
+        primary key (kind,code,ordinal1,ordinal2));
 ''')
 conn.executemany('insert into versions(version,abbr,lang,blessed,year,copyright,title_ko,title_en,maxgap) values(?,?,?,?,?,?,?,?,?);', versions)
 conn.executemany('insert into versionaliases(alias,version) values(?,?);', versionaliases.items())
@@ -155,5 +199,6 @@ conn.executemany('insert into books(book,code,abbr_ko,title_ko,abbr_en,title_en)
 conn.executemany('insert into bookaliases(alias,book) values(?,?);', bookaliases.items())
 conn.executemany('insert into verses(book,chapter,verse,"index",ordinal) values(?,?,?,?,?);', verses)
 conn.executemany('insert into data(version,ordinal,"text",markup) values(?,?,?,?);', data)
+conn.executemany('insert into topics(kind,code,ordinal1,ordinal2) values(?,?,?,?);', topics)
 conn.commit()
 

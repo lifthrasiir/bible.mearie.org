@@ -8,6 +8,8 @@ from collections import namedtuple, OrderedDict
 import re
 import sqlite3
 import urllib
+import datetime
+import bisect
 
 sqlite3.register_converter('book', int)
 
@@ -143,6 +145,8 @@ class Mappings(object):
             self.chapterranges = {}
             # (book,verse): (minverse, maxverse, deltaindex, deltaordinal)
             self.verseranges = {}
+            # lexicographical_code: [(minordinal, maxordinal), ...]
+            dailyranges = {}
 
             for row in db.execute('select * from books order by book;'):
                 assert len(self.books) == row['book']
@@ -181,6 +185,19 @@ class Mappings(object):
                         (row['minverse'], row['maxverse'],
                          row['minindex'] - row['minverse'],
                          row['minordinal'] - row['minverse'])
+            for row in db.execute('''select code,
+                                            v1.book as book1, v1.chapter as chapter1, v1.verse as verse1,
+                                            v2.book as book2, v2.chapter as chapter2, v2.verse as verse2
+                                     from topics
+                                          inner join verses v1 on v1.ordinal = ordinal1
+                                          inner join verses v2 on v2.ordinal = ordinal2
+                                     where kind = ?;''', ('daily',)):
+                bcv1 = (row['book1'], row['chapter1'], row['verse1'])
+                bcv2 = (row['book2'], row['chapter2'], row['verse2'])
+                dailyranges.setdefault(row['code'], []).append((bcv1, bcv2))
+
+            for ranges in dailyranges.values(): ranges.sort()
+            self.dailyranges = sorted(dailyranges.items())
 
         # TODO
         self.DEFAULT_VER = self.blessedversions['ko']['version']
@@ -190,6 +207,14 @@ class Mappings(object):
 
     def find_version_by_alias(self, alias):
         return self.versionaliases[self.normalize(alias)]
+
+    def get_recent_daily(self, code):
+        # XXX a hack to locate the entry next to the today's entry
+        index = bisect.bisect_right(self.dailyranges, (code + u'\U0010ffff',))
+        assert index <= 0 or self.dailyranges[index-1][0] <= code
+        assert index >= len(self.dailyranges) or self.dailyranges[index][0] > code
+        code, ranges = self.dailyranges[index-1]
+        return Daily(code, ranges)
 
     def to_ordinal(self, (b,c,v)):
         try:
@@ -227,6 +252,24 @@ class triple(_triple):
         index = deltaindex + verse
         ordinal = deltaordinal + verse
         return _triple.__new__(cls, book, chapter, verse, index, ordinal)
+
+    @property
+    def book_and_chapter(self):
+        return (self.book, self.chapter)
+
+class Daily(object):
+    def __init__(self, code, ranges):
+        self.code = code
+        self.ranges = [(triple(*bcv1), triple(*bcv2)) for bcv1, bcv2 in ranges]
+        self.month, self.day = map(int, code.split('-', 1))
+
+    @property
+    def start(self):
+        return self.ranges[0][0]
+
+    @property
+    def end(self):
+        return self.ranges[-1][1]
 
 
 class Normalizable(namedtuple('Normalizable', 'before after')):
@@ -385,11 +428,36 @@ def split_by_ordinal(verses, minordinal, maxordinal):
 
 @app.route('/')
 def index():
-    return render_template('index.html', books=mappings.books)
+    today = datetime.date.today()
+    daily = mappings.get_recent_daily('%02d-%02d' % (today.month, today.day))
+    return render_template('index.html', books=mappings.books, daily=daily)
 
 @app.route('/+/about')
 def about():
     return render_template('about.html')
+
+@app.route('/+/daily/')
+@app.route('/+/daily/<code>')
+def daily(code=None):
+    if code is None:
+        today = datetime.date.today()
+        actualcode = '%02d-%02d' % (today.month, today.day)
+    else:
+        if len(code) == 5 and code[:2].isdigit() and code[2] == '-' and code[3:].isdigit():
+            actualcode = code 
+        else:
+            abort(404)
+
+    normalize_url('.daily', code=actualcode)
+
+    daily = mappings.get_recent_daily(actualcode)
+    if daily.code != code:
+        return redirect(url_for('.daily', code=daily.code))
+    with database() as db:
+        where = ' and '.join(['(v.ordinal between ? and ?)'] * len(daily.ranges))
+        args = tuple(bcv.ordinal for start_end in daily.ranges for bcv in start_end)
+        verses = execute_verses_query(db, where, args).fetchall()
+    return render_verses('daily.html', verses, daily=daily)
 
 @app.route('/search')
 def search():

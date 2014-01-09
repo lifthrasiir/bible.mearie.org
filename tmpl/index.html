@@ -7,6 +7,7 @@
 </form>
 <p>권/장/절로 바로 가기: “<a href="{{url_for('.search')}}?q=창세기">창세기</a>”, “<a href="{{url_for('.search')}}?q=창1">창1</a>”, “<a href="{{url_for('.search')}}?q=창1:1">창1:1</a>”</p>
 <p>낱말로 찾아보기: “<a href="{{url_for('.search')}}?q=부활">부활</a>”, “<a href="{{url_for('.search')}}?q=적그리스도">적그리스도</a>”, “<a href="{{url_for('.search')}}?q=아사헬">아사헬</a>”</p>
+<p>{{daily.month}}월 {{daily.day}}일에 읽을 성경 말씀은 <a href="{{url_for('.daily', code=daily.code)}}">{{verse_range(daily.start, daily.end)}}</a>입니다.</p>
 </section>
 <section class="rightside">
 <h2>전체 메뉴</h2>
