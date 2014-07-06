@@ -24,7 +24,7 @@
 	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
 		<a href="{{url_for('.view_chapter', book=(next.book|book).code, chapter=next.chapter)}}">&darr; {% if book.book == next.book %}다음{% else %}{{(next.book|book).title_ko}}의 첫{% endif %} 장으로 가기</a>
 	</td></tr>
-</thead>
+</tfoot>
 {%- endif %}
 </table>
 <nav>
