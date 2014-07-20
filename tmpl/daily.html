@@ -5,6 +5,11 @@
 	{{daily.month}}월 {{daily.day}}일에 읽을 성경 말씀은 {{verse_range(daily.start, daily.end)}}입니다.
 </nav>
 <table>
+<thead>
+	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
+		{% with prev = daily.prev %}<a href="{{url_for('.daily', code=prev.code)}}">&uarr; {{prev.month}}월 {{prev.day}}일에 읽었던 성경 말씀으로 가기 </a>{% endwith %}
+	</td></tr>
+</thead>
 {%- for section in sections %}
 <tbody{{section.classes|classes}}>
 	{%- for row in section.verses %} 
@@ -12,6 +17,11 @@
 	{%- endfor %}
 </tbody>
 {%- endfor %}
+<thead>
+	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
+		{% with next = daily.next %}<a href="{{url_for('.daily', code=next.code)}}">&darr; {{next.month}}월 {{next.day}}일에 읽을 성경 말씀으로 가기 </a>{% endwith %}
+	</td></tr>
+</thead>
 </table>
 </section>
 {% endblock %}

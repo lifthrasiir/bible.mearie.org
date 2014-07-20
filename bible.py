@@ -213,8 +213,7 @@ class Mappings(object):
         index = bisect.bisect_right(self.dailyranges, (code + u'\U0010ffff',))
         assert index <= 0 or self.dailyranges[index-1][0] <= code
         assert index >= len(self.dailyranges) or self.dailyranges[index][0] > code
-        code, ranges = self.dailyranges[index-1]
-        return Daily(code, ranges)
+        return Daily(index-1)
 
     def to_ordinal(self, (b,c,v)):
         try:
@@ -258,7 +257,9 @@ class triple(_triple):
         return (self.book, self.chapter)
 
 class Daily(object):
-    def __init__(self, code, ranges):
+    def __init__(self, index):
+        code, ranges = mappings.dailyranges[index]
+        self.index = index
         self.code = code
         self.ranges = [(triple(*bcv1), triple(*bcv2)) for bcv1, bcv2 in ranges]
         self.month, self.day = map(int, code.split('-', 1))
@@ -270,6 +271,14 @@ class Daily(object):
     @property
     def end(self):
         return self.ranges[-1][1]
+
+    @property
+    def prev(self):
+        return Daily((self.index - 1) % len(mappings.dailyranges))
+
+    @property
+    def next(self):
+        return Daily((self.index + 1) % len(mappings.dailyranges))
 
 
 class Normalizable(namedtuple('Normalizable', 'before after')):
