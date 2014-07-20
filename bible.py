@@ -547,6 +547,8 @@ def view_chapters(book, chapter1, chapter2):
         end = triple(book.book, chapter2, '$')
     except Exception:
         abort(404)
+    if start.ordinal > end.ordinal:
+        return redirect(url_for('.view_chapters', book=book, chapter1=chapter2, chapter2=chapter1))
 
     with database() as db:
         verses = execute_verses_query(db, 'v.ordinal between ? and ?',
@@ -589,6 +591,10 @@ def view_verses(book, chapter1, verse1, chapter2, verse2):
         end = triple(book.book, chapter2, verse2)
     except Exception:
         abort(404)
+    if start.ordinal > end.ordinal:
+        return redirect(url_for('.view_verses', book=book, chapter1=chapter2, verse1=verse2,
+                                                           chapter2=chapter1, verse2=verse1))
+
     if chapter1 == chapter2:
         query = u'%s %d:%d-%d' % (book.abbr_ko, start.chapter, start.verse, end.verse)
     else:
