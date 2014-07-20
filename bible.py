@@ -439,11 +439,11 @@ def split_by_ordinal(verses, minordinal, maxordinal):
 def index():
     today = datetime.date.today()
     daily = mappings.get_recent_daily('%02d-%02d' % (today.month, today.day))
-    return render_template('index.html', books=mappings.books, daily=daily)
+    return render_template('index.html', query=u'', books=mappings.books, daily=daily)
 
 @app.route('/+/about')
 def about():
-    return render_template('about.html')
+    return render_template('about.html', query=u'')
 
 @app.route('/+/daily/')
 @app.route('/+/daily/<code>')
@@ -466,7 +466,9 @@ def daily(code=None):
         where = ' and '.join(['(v.ordinal between ? and ?)'] * len(daily.ranges))
         args = tuple(bcv.ordinal for start_end in daily.ranges for bcv in start_end)
         verses = execute_verses_query(db, where, args).fetchall()
-    return render_verses('daily.html', verses, daily=daily)
+
+    query = u'' # XXX
+    return render_verses('daily.html', verses, query=query, daily=daily)
 
 @app.route('/search')
 def search():
@@ -533,7 +535,8 @@ def view_chapter(book, chapter):
                 (start.ordinal-1, end.ordinal+1)).fetchall()
         prev, verses, next = split_by_ordinal(verses, start.ordinal, end.ordinal)
 
-    return render_verses('chapters.html', verses, prev=prev, next=next,
+    query = u'%s %d' % (book.abbr_ko, start.chapter)
+    return render_verses('chapters.html', verses, query=query, prev=prev, next=next,
                          book=book, chapter1=start.chapter, chapter2=end.chapter)
 
 @app.route('/<book:book>/<int_or_end:chapter1>-<int_or_end:chapter2>')
@@ -550,10 +553,11 @@ def view_chapters(book, chapter1, chapter2):
                 (start.ordinal-1, end.ordinal+1)).fetchall()
         prev, verses, next = split_by_ordinal(verses, start.ordinal, end.ordinal)
 
-    return render_verses('chapters.html', verses, prev=prev, next=next,
+    query = u'%s %d-%d' % (book.abbr_ko, start.chapter, end.chapter)
+    return render_verses('chapters.html', verses, query=query, prev=prev, next=next,
                          book=book, chapter1=start.chapter, chapter2=end.chapter)
 
-def do_view_verses(book, start, end):
+def do_view_verses(book, start, end, query):
     bcv1 = (start.book, start.chapter, start.verse)
     bcv2 = (end.book, end.chapter, end.verse)
     highlight = lambda b,c,v: bcv1 <= (b,c,v) <= bcv2
@@ -562,7 +566,7 @@ def do_view_verses(book, start, end):
         verses = execute_verses_query(db, 'v.book=? and v."index" between ? and ?',
                 (book.book, start.index-5, end.index+5)).fetchall()
 
-    return render_verses('verses.html', verses, highlight=highlight,
+    return render_verses('verses.html', verses, query=query, highlight=highlight,
                          book=book, chapter1=start.chapter, verse1=start.verse,
                          chapter2=end.chapter, verse2=end.verse)
 
@@ -573,7 +577,8 @@ def view_verse(book, chapter, verse):
         start = end = triple(book.book, chapter, verse)
     except Exception:
         abort(404)
-    return do_view_verses(book, start, end)
+    query = u'%s %d:%d' % (book.abbr_ko, start.chapter, start.verse)
+    return do_view_verses(book, start, end, query)
 
 @app.route('/<book:book>/<int_or_end:chapter1>.<int_or_end:verse1>-<int_or_end:chapter2>.<int_or_end:verse2>')
 def view_verses(book, chapter1, verse1, chapter2, verse2):
@@ -584,7 +589,12 @@ def view_verses(book, chapter1, verse1, chapter2, verse2):
         end = triple(book.book, chapter2, verse2)
     except Exception:
         abort(404)
-    return do_view_verses(book, start, end)
+    if chapter1 == chapter2:
+        query = u'%s %d:%d-%d' % (book.abbr_ko, start.chapter, start.verse, end.verse)
+    else:
+        query = u'%s %d:%d-%d:%d' % (book.abbr_ko, start.chapter, start.verse,
+                                     end.chapter, end.verse)
+    return do_view_verses(book, start, end, query)
 
 @app.before_request
 def compile_less():

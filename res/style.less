@@ -42,12 +42,28 @@ header {
 	}
 
 	nav {
-		float: right;
 		line-height: 1;
-		margin-top: -1.2em;
+
+		.quick-search {
+			float: right;
+			margin: -2.67em 0.75em 0 0.75em;
+			padding: 0;
+			input {
+				margin: 0;
+				padding: 0;
+				&[type=text] {
+					width: 10em;
+					height: 1em;
+				}
+				&[type=submit] {
+					width: 3em;
+				}
+			}
+		}
 
 		ul {
-			display: inline;
+			float: right;
+			margin: -1.2em 0 0 0;
 			padding: 0;
 		}
 
@@ -239,6 +255,9 @@ section {
 		width: auto;
 		margin: 0;
 	}
+	footer {
+		font-size: 80%;
+	}
 	section.leftside {
 		width: 100%;
 		float: none;
@@ -266,17 +285,20 @@ section {
 	header {
 		h1 {
 			display: block;
+			font-size: 150%;
 			text-align: center;
-			line-height: 1.5;
+			line-height: 1.25;
 			a {
 				border-bottom-width: 0;
 			}
 		}
 		nav {
-			float: none;
-			text-align: center;
 			line-height: 1.5;
-			margin-top: 0;
+			.quick-search, ul {
+				float: none;
+				text-align: center;
+				margin-top: 0;
+			}
 		}
 	}
 }

@@ -43,6 +43,10 @@
 	<header>
 	<h1><a href="{{url_for('.index')}}">성경</a></h1>
 	<nav>
+		<form class="quick-search" action="{{url_for('.search')}}" method="get">
+			<input type="text" name="q" value="{{query}}" />
+			<input type="submit" value="검색" />
+		</form>
 		<ul>
 			<li><a href="{{url_for('.about')}}">대하여</a></li>
 			<li><a href="#">노트</a></li>
