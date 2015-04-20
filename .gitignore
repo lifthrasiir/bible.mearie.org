@@ -1,8 +1,7 @@
-syntax: glob
 *.pyc
 *.db
 *.sql
 env
 notes.txt
 data/verses_full.*
-.git
+.hg
