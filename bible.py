@@ -5,6 +5,7 @@ from werkzeug.routing import BaseConverter, ValidationError
 from werkzeug.datastructures import MultiDict
 from contextlib import contextmanager
 from collections import namedtuple, OrderedDict
+import sys
 import re
 import sqlite3
 import urllib
@@ -210,7 +211,7 @@ class Mappings(object):
 
     def get_recent_daily(self, code):
         # XXX a hack to locate the entry next to the today's entry
-        index = bisect.bisect_right(self.dailyranges, (code + u'\U0010ffff',))
+        index = bisect.bisect_right(self.dailyranges, (code + unichr(sys.maxunicode),))
         assert index <= 0 or self.dailyranges[index-1][0] <= code
         assert index >= len(self.dailyranges) or self.dailyranges[index][0] > code
         return Daily(index-1)
@@ -617,5 +618,5 @@ def compile_less():
 
 if __name__ == '__main__':
     app.debug = True
-    app.run()
+    app.run('0.0.0.0', int(sys.argv[1]) if len(sys.argv) > 1 else 5000)
 
