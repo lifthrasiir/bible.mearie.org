@@ -318,14 +318,15 @@ class IntOrEndConverter(BaseConverter):
 app.url_map.converters['book'] = BookConverter
 app.url_map.converters['int_or_end'] = IntOrEndConverter
 
-def build_query_suffix(*exclude):
+def build_query_suffix(*exclude, **added):
     normalized_version = str(g.version1) + (','+str(g.version2) if g.version2 else '')
     newquery = MultiDict(request.args)
     if normalized_version and normalized_version != mappings.DEFAULT_VER:
         newquery['v'] = normalized_version
     else:
         newquery.poplist('v')
-    kvs = [(k, v.encode('utf-8')) for k,v in newquery.items(multi=True) if k not in exclude]
+    kvs = [(k, v.encode('utf-8')) for k,v in added.items()]
+    kvs += [(k, v.encode('utf-8')) for k,v in newquery.items(multi=True) if k not in exclude]
     newquery = urllib.urlencode(kvs)
     if newquery:
         return '?' + newquery
@@ -407,9 +408,9 @@ def render_verses(tmpl, verses, **kwargs):
 def execute_verses_query(db, where='1', args=()):
     if g.version2:
         return db.execute('''
-            select v.book as "book [book]", v.*, d1.text as text, d1.markup as markup,
+            select v.book as "book [book]", v.*, d.text as text, d.markup as markup,
                         d2.text as text2, d2.markup as markup2
-            from verses v left outer join data d1 on d1.version=? and v.ordinal=d1.ordinal
+            from verses v left outer join data d on d.version=? and v.ordinal=d.ordinal
                           left outer join data d2 on d2.version=? and v.ordinal=d2.ordinal
             where '''+where+'''
             order by ordinal asc;
@@ -478,42 +479,173 @@ def search():
 
     normalize_url('.search')
 
-    # try to redirect to direct links
-    books = ur'(?:%s)' % u'|'.join(book['abbr_ko'] for book in mappings.books)
-    m = re.search(ur'^\s*(%s)\s*(?:(\d+:\d+)(?:[-~](\d+(?::\d+)?))?'
-                               ur'|(\d+)(?:[-~](\d+))?)\s*$' % books, query)
-    if m:
-        book = mappings.find_book_by_alias(m.group(1))
-        if m.group(2) is not None:
-            chap1, _, verse1 = m.group(2).partition(u':')
+    # search syntax:
+    # - lexemes are primarily separated (and ordered) by non-letter characters.
+    # - quotes can be used to escape whitespaces. no intra-quotes are accepted.
+    # - any lexeme (including quoted one) can be prefixed by `tag:` to clarify meaning.
+    # - there can only be one occurrence of chapter-verse range spec.
+    #   the spec has its own syntax and is not governed by the ordinary separator.
+    #   the range spec does not include the ordinary number, so that "1 John" etc. can be parsed.
+    # - a series of untagged unquoted lexemes is concatenated *again* and checked for known tokens.
+    # - any unrecognized token becomes a search keyword.
+    #
+    # example:
+    # "John 3:16" -> book:John, range:3:16
+    # "John 3 - 4 (KJV/개역)" -> book:John, range:3-4, version:KJV, version:개역
+    # "John b:3 - 4 (KJV/개역)" -> book:John, book:3, keyword:4, version:KJV, version:개역
+    # "2 1 John" -> range:2, book:1John
+    # "1 John 2 John" -> book:1John, book:2John (probably an error)
+    # "요한 계시록 어린양" -> book:Rev, keyword:어린양
+    # "요한 keyword:어린양 계시록" -> keyword:요한, keyword:어린양, keyword:계시록
+    # "'alpha and omega' niv" -> keyword:"alpha and omega", version:NIV
+
+    TAGS = {
+        u'v': u'version', u'ver': u'version', u'version': u'version',
+        u'q': u'keyword', u'keyword': u'keyword',
+        u'b': u'book', u'book': u'book',
+        # the pseudo-tag "range" is used for chapter and verse ranges
+    }
+
+    # parse the query into a series of tagged and untagged lexeme
+    lexemes = []
+    for m in re.findall(ur'(?ui)'
+                        # chapter-verse range spec (1:2, 1:2-3:4, 1:2 ~ 4 etc.)
+                        ur'(\d+\s*:\s*\d+)(?:\s*[-~]\s*(\d+(?:\s*:\s*\d+)?))?|'
+                        # chapter-only range spec (1-2, 1 ~ 2 etc.)
+                        # the single number is parsed later
+                        ur'(\d+)\s*[-~]\s*(\d+)|'
+                        # lexeme with optional tag (foo, v:asdf, "a b c", book:'x y z' etc.)
+                        # a row of letters and digits does not mix (e.g. 창15 -> 창, 15)
+                        ur'(?:(' + u'|'.join(map(re.escape, TAGS)) + ur'):)?'
+                            ur'(?:"([^"]*)"|\'([^\']*)\'|([^\W\d]+|\d+))', query):
+        if m[0]:
+            chap1, _, verse1 = m[0].partition(u':')
             chap1 = int(chap1)
             verse1 = int(verse1)
-            if m.group(3) is not None:
-                chap2, _, verse2 = m.group(3).rpartition(u':')
+            if m[1]:
+                chap2, _, verse2 = m[1].rpartition(u':')
                 chap2 = int(chap2 or chap1)
                 verse2 = int(verse2)
-                url = url_for('.view_verses', book=book, chapter1=chap1, verse1=verse1,
-                                                         chapter2=chap2, verse2=verse2)
             else:
-                url = url_for('.view_verse', book=book, chapter=chap1, verse=verse1)
+                chap2 = verse2 = None
+            lexemes.append(('range', (chap1, chap2, verse1, verse2)))
+        elif m[2]:
+            chap1 = int(m[2])
+            if m[3] is not None:
+                chap2 = int(m[3])
+            else:
+                chap2 = None
+            lexemes.append(('range', (chap1, chap2, None, None)))
+        elif m[4]:
+            lexemes.append((TAGS[m[4]], m[5] or m[6] or m[7]))
+        elif m[5] or m[6]:
+            # quoted untagged lexemes are always keywords
+            lexemes.append(('keyword', m[5] or m[6]))
         else:
-            chap1 = int(m.group(4))
-            if m.group(5) is not None:
-                chap2 = int(m.group(5))
-                url = url_for('.view_chapters', book=book, chapter1=chap1, chapter2=chap2)
-            else:
-                url = url_for('.view_chapter', book=book, chapter=chap1)
-        return redirect(url + build_query_suffix('q'))
+            # unquoted untagged lexemes are resolved later
+            if not (lexemes and lexemes[-1][0] is None):
+                lexemes.append((None, []))
+            lexemes[-1][1].append(m[7])
 
-    try:
-        book = mappings.find_book_by_alias(query)
-    except KeyError:
-        book = None
-    if book:
-        return redirect(url_for('.view_book', book=book))
+    # resolve remaining unquoted untagged lexemes
+    tokens = []
+    for lexeme in lexemes:
+        if lexeme[0] is None:
+            unquoted = lexeme[1]
+            start = 0
+            while start < len(unquoted):
+                s = u''
+                # avoid quadratic complexity, no token is more than 5 words long
+                for i in xrange(start, min(start+5, len(unquoted))):
+                    s += unquoted[i]
+                    try:
+                        book = mappings.find_book_by_alias(s)
+                        tokens.append(('book', s))
+                        start = i + 1
+                        break
+                    except KeyError:
+                        pass
+                    try:
+                        version = mappings.find_version_by_alias(s)
+                        if version.blessed: # TODO temporary
+                            tokens.append(('version',s))
+                            start = i + 1
+                            break
+                    except KeyError:
+                        pass
+                else:
+                    if unquoted[start].isdigit():
+                        tokens.append(('range', (int(unquoted[start]), None, None, None)))
+                    else:
+                        tokens.append(('keyword', unquoted[start]))
+                    start += 1
+        else:
+            tokens.append(lexeme)
+
+    tagged = {}
+    for tag, value in tokens:
+        tagged.setdefault(tag, []).append(value)
+
+    if 'version' in tagged:
+        versions = []
+        seen = set()
+        for s in tagged['version']:
+            try:
+                version = mappings.find_version_by_alias(s)
+                if version.blessed: # TODO temporary
+                    if version.version not in seen:
+                        seen.add(version.version)
+                        versions.append(version)
+            except KeyError:
+                pass
+
+        g.version1 = versions[0] if len(versions) > 0 else None
+        g.version2 = versions[1] if len(versions) > 1 else None
+        # TODO version3 and later
+
+    if 'book' in tagged:
+        books = []
+        for s in tagged['book']:
+            try:
+                book = mappings.find_book_by_alias(s)
+                books.append(book)
+            except KeyError:
+                pass
+
+        if books:
+            book = books[0]
+            # TODO 2 or more books
+
+            if 'range' in tagged:
+                # TODO check for len(tagged['range']) > 1
+                chap1, chap2, verse1, verse2 = tagged['range'][0]
+                if verse1:
+                    if chap2:
+                        assert verse2
+                        url = url_for('.view_verses', book=book, chapter1=chap1, verse1=verse1,
+                                                                 chapter2=chap2, verse2=verse2)
+                    else:
+                        url = url_for('.view_verse', book=book, chapter=chap1, verse=verse1)
+                else:
+                    if chap2:
+                        url = url_for('.view_chapters', book=book, chapter1=chap1, chapter2=chap2)
+                    else:
+                        url = url_for('.view_chapter', book=book, chapter=chap1)
+            else:
+                url = url_for('.view_book', book=book)
+
+            return redirect(url + build_query_suffix('q'))
+
+    keywords = tagged.get('keyword', [])
+    query = u' '.join(keywords)
+    if not query: return redirect('/')
+
+    # version parameter should be re-normalized
+    if 'version' in tagged:
+        return redirect(url_for('.search') + build_query_suffix('q', q=query))
 
     with database() as db:
-        verses = execute_verses_query(db, '"text" like ?',
+        verses = execute_verses_query(db, 'd."text" like ?',
                 ('%%%s%%' % query.strip(),)).fetchall()
 
     return render_verses('search.html', verses, query=query)

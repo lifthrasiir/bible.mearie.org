@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block view %}
 <section class="verses">
-<table>
+<table class="{{'two-columns' if version2 else 'one-column'}}">
 {%- for section in sections %}
 <tbody{{section.classes|classes}}>
 	{%- for row in section.verses %} 

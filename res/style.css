@@ -29,5 +29,6 @@ section.rightside{margin-left:49%;border-left:1px solid #808080;padding-top:1px;
 .verses table td{margin:0;padding:.3em .3em;text-align:left;vertical-align:top}.verses table td.prefix{padding-left:.1em;padding-right:.1em;width:1em;text-align:center;background:#eee}
 .verses table td.text{text-align:justify}.verses table td.text strong{color:#400;font-weight:900;text-shadow:#800 0 0 5px}
 .verses table td.text em{font-style:normal;font-weight:700;text-shadow:#000 0 0 5px}
+.verses table.two-columns td.text{width:42%}
 .verses table .highlight{border:.15em solid #f00}
 @media (max-width:820px){body{width:auto;margin:0} footer{font-size:80%} section.leftside{width:100%;float:none;margin-right:0;border-right:0;border-bottom:1px solid #808080} section.rightside{margin-left:0;border-left:0} .verses nav .chapters .omissible{display:none} .verses nav .chapters .ellipsis{display:inline}}@media (max-width:500px){header h1{display:block;font-size:150%;text-align:center;line-height:1.25}header h1 a{border-bottom-width:0} header nav{line-height:1.5}header nav .quick-search,header nav ul{float:none;text-align:center;margin-top:0}}
