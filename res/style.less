@@ -180,8 +180,10 @@ section {
 		border: 1px solid hsl(@site-hue, 50%, 50%);
 		margin: 0.5em 0;
 		padding: 0.5em;
+		line-height: 1.8;
 
 		.chapters {
+			line-height: 1.5;
 			.shown {
 				background-color: yellow;
 				box-shadow: yellow 0 0 3px;
@@ -302,6 +304,13 @@ section {
 				float: none;
 				text-align: center;
 				margin-top: 0;
+			}
+		}
+	}
+	.verses {
+		nav {
+			.linebreak {
+				display: block;
 			}
 		}
 	}
