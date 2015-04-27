@@ -1,6 +1,22 @@
 {% extends "base.html" %}
 {% block view %}
 <section class="verses">
+<nav>
+<form action="{{url_for('.search')}}" method="get">
+	<input type="text" name="q" value="{{query}}" /> 검색어로
+	<select name="v">
+	{%- for version in mappings.versions.values() if version.blessed %}
+		<option value="{{version.version}}"{% if version1 == version %} selected="selected"{% endif %}>{{version.title_ko}}</option>
+	{%- endfor %}
+	</select>에서 찾은
+	{% if sections -%}
+	성경 말씀입니다.
+	{%- else -%}
+	성경 말씀이 없습니다.
+	{%- endif %}
+	<input type="submit" value="다시 찾아 봅니다." />
+</form>
+</nav>
 <table class="{{'two-columns' if version2 else 'one-column'}}">
 {%- for section in sections %}
 <tbody{{section.classes|classes}}>
