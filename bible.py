@@ -230,7 +230,7 @@ class Mappings(object):
 mappings = Mappings()
 @app.context_processor
 def inject_mappings():
-    return {'mappings': mappings}
+    return {'mappings': mappings, 'build_query_suffix': build_query_suffix}
 
 _triple = namedtuple('triple', 'book chapter verse index ordinal')
 class triple(_triple):

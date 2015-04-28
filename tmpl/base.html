@@ -12,15 +12,15 @@
 	<div class="chapters"><strong>{{book.title_ko}}</strong>의 다른 장들:
 		{% with sep = joiner(' ') -%}
 		{%- macro chapters(c1,c2) -%}
-			<a href="{{url_for('.view_chapter', book=book.code, chapter=c1)}}">{{c1}}</a>
+			<a href="{{url_for('.view_chapter', book=book.code, chapter=c1)}}{{build_query_suffix()}}">{{c1}}</a>
 			{%- if c1+1 < c2+1 -%}
 			{%- if c1+1 < c2 -%}
 			<span class="omissible">{% for c in range(c1+1, c2) -%}
-				{{sep()}}<a href="{{url_for('.view_chapter', book=book.code, chapter=c)}}">{{c}}</a>
+				{{sep()}}<a href="{{url_for('.view_chapter', book=book.code, chapter=c)}}{{build_query_suffix()}}">{{c}}</a>
 			{%- endfor %}</span>
 			<span class="ellipsis">{{sep()}}&hellip;</span>
 			{%- endif -%}
-			{{sep()}}<a href="{{url_for('.view_chapter', book=book.code, chapter=c2)}}">{{c2}}</a>
+			{{sep()}}<a href="{{url_for('.view_chapter', book=book.code, chapter=c2)}}{{build_query_suffix()}}">{{c2}}</a>
 			{%- endif -%}
 		{%- endmacro -%}
 		{%- if minchap < chapter1 %}{{sep()}}{{chapters(minchap, chapter1-1)}}{% endif -%}

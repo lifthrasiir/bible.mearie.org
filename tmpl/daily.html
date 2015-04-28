@@ -7,7 +7,7 @@
 <table>
 <thead>
 	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
-		{% with prev = daily.prev %}<a href="{{url_for('.daily', code=prev.code)}}">&uarr; {{prev.month}}월 {{prev.day}}일에 읽었던 성경 말씀으로 가기 </a>{% endwith %}
+		{% with prev = daily.prev %}<a href="{{url_for('.daily', code=prev.code)}}{{build_query_suffix()}}">&uarr; {{prev.month}}월 {{prev.day}}일에 읽었던 성경 말씀으로 가기 </a>{% endwith %}
 	</td></tr>
 </thead>
 {%- for section in sections %}
@@ -19,7 +19,7 @@
 {%- endfor %}
 <thead>
 	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
-		{% with next = daily.next %}<a href="{{url_for('.daily', code=next.code)}}">&darr; {{next.month}}월 {{next.day}}일에 읽을 성경 말씀으로 가기 </a>{% endwith %}
+		{% with next = daily.next %}<a href="{{url_for('.daily', code=next.code)}}{{build_query_suffix()}}">&darr; {{next.month}}월 {{next.day}}일에 읽을 성경 말씀으로 가기 </a>{% endwith %}
 	</td></tr>
 </thead>
 </table>
