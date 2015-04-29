@@ -37,10 +37,10 @@ def main():
             books.append((bookid, line['code'],
                           line['abbr_ko'], line['title_ko'],
                           line['abbr_en'], line['title_en']))
-            bookaliases[normalize(line['abbr_ko'])] = bookid
-            bookaliases[normalize(line['title_ko'])] = bookid
-            bookaliases[normalize(line['abbr_en'])] = bookid
-            bookaliases[normalize(line['title_en'])] = bookid
+            bookaliases[normalize(line['abbr_ko'])] = bookid, 'ko'
+            bookaliases[normalize(line['title_ko'])] = bookid, 'ko'
+            bookaliases[normalize(line['abbr_en'])] = bookid, 'en'
+            bookaliases[normalize(line['title_en'])] = bookid, 'en'
 
     bcvs = {}
     data = []
@@ -53,7 +53,7 @@ def main():
             if not line: continue
             bv, b, c, v, t = line.split('\t')
             if bv not in versionaliases: continue
-            b = bookaliases[normalize(b)]
+            b, _ = bookaliases[normalize(b)]
             c = int(c)
             v = int(v)
             bcvs[b, c, v] = None
@@ -117,7 +117,7 @@ def main():
     for code, ranges in sorted(dailydata.items()):
         ordranges = []
         while ranges:
-            book = bookaliases[normalize(ranges[0])]
+            book, _ = bookaliases[normalize(ranges[0])]
             if len(ranges) > 3 and isinstance(ranges[3], (int,long)):
                 chapter1 = ranges[1]
                 verse1 = ranges[2]
@@ -170,6 +170,7 @@ def main():
         create table if not exists bookaliases(
             alias text not null,
             book integer not null references books(book),
+            lang text,
             primary key (alias,book));
         create table if not exists verses(
             book integer not null references books(book),
@@ -197,7 +198,7 @@ def main():
     conn.executemany('insert into versions(version,abbr,lang,blessed,year,copyright,title_ko,title_en,maxgap) values(?,?,?,?,?,?,?,?,?);', versions)
     conn.executemany('insert into versionaliases(alias,version) values(?,?);', versionaliases.items())
     conn.executemany('insert into books(book,code,abbr_ko,title_ko,abbr_en,title_en) values(?,?,?,?,?,?);', books)
-    conn.executemany('insert into bookaliases(alias,book) values(?,?);', bookaliases.items())
+    conn.executemany('insert into bookaliases(alias,book,lang) values(?,?,?);', [(a,b,l) for a,(b,l) in bookaliases.items()])
     conn.executemany('insert into verses(book,chapter,verse,"index",ordinal) values(?,?,?,?,?);', verses)
     conn.executemany('insert into data(version,ordinal,"text",markup) values(?,?,?,?);', data)
     conn.executemany('insert into topics(kind,code,ordinal1,ordinal2) values(?,?,?,?);', topics)

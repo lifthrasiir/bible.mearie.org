@@ -155,7 +155,7 @@ class Mappings(object):
                 self.books.append(row)
                 self.bookaliases[row['book']] = row
             for row in db.execute('select * from bookaliases;'):
-                self.bookaliases[row['alias']] = self.books[row['book']]
+                self.bookaliases[row['alias']] = self.books[row['book']], row['lang']
             for row in db.execute('select * from versions;'):
                 row.set_primary('version')
                 self.versions[row['version']] = row
@@ -202,8 +202,15 @@ class Mappings(object):
 
         # TODO
         self.DEFAULT_VER = self.blessedversions['ko']['version']
+        self.DEFAULT_VER_PER_LANG = {
+            'ko': self.blessedversions['ko']['version'],
+            'en': self.blessedversions['en']['version'],
+        }
 
     def find_book_by_alias(self, alias):
+        return self.bookaliases[self.normalize(alias)][0]
+
+    def find_book_and_lang_by_alias(self, alias):
         return self.bookaliases[self.normalize(alias)]
 
     def find_version_by_alias(self, alias):
@@ -334,7 +341,7 @@ def build_query_suffix(**repl):
         newquery.poplist('c')
 
     kvs = [(k, v.encode('utf-8')) for k, v in newquery.items(multi=True) if k not in repl]
-    kvs += [(k, str(v).encode('utf-8')) for k, v in repl.items() if v is not None]
+    kvs += [(k, unicode(v).encode('utf-8')) for k, v in repl.items() if v is not None]
     newquery = urllib.urlencode(kvs)
     if newquery:
         return '?' + newquery
@@ -632,7 +639,7 @@ def search():
                 for i in xrange(start, min(start+5, len(unquoted))):
                     s += unquoted[i]
                     try:
-                        book = mappings.find_book_by_alias(s)
+                        book, lang = mappings.find_book_and_lang_by_alias(s)
                         tokens.append(('book', s))
                         start = i + 1
                         break
@@ -655,10 +662,35 @@ def search():
         else:
             tokens.append(lexeme)
 
+    # implied language is used to resolve versions when no other infos are available
+    implied_lang = set()
     tagged = {}
     for tag, value in tokens:
         tagged.setdefault(tag, []).append(value)
+        if tag == 'version':
+            try:
+                version = mappings.find_version_by_alias(s)
+                implied_lang.add(version.lang)
+            except KeyError:
+                pass
+        elif tag == 'book':
+            try:
+                book, lang = mappings.find_book_and_lang_by_alias(s)
+                if lang: implied_lang.add(lang)
+            except KeyError:
+                pass
+        elif tag == 'keyword':
+            if all(u'가' <= c <= u'힣' for c in value):
+                implied_lang.add('ko')
+            elif all(u'a' <= c <= 'z' or u'A' <= c <= u'Z' for c in value):
+                implied_lang.add('en')
 
+    if len(implied_lang) == 1:
+        implied_lang, = list(implied_lang)
+    else:
+        implied_lang = None # unknown or ambiguous
+
+    old_version = g.version1, g.version2
     if 'version' in tagged:
         versions = []
         seen = set()
@@ -675,6 +707,12 @@ def search():
         g.version1 = versions[0] if len(versions) > 0 else None
         g.version2 = versions[1] if len(versions) > 1 else None
         # TODO version3 and later
+    else:
+        # if there is no other version hint but an implied lang, use it
+        if not request.args.get('v') and implied_lang:
+            g.version1 = mappings.versions[mappings.DEFAULT_VER_PER_LANG[implied_lang]]
+
+    version_updated = (g.version1, g.version2) != old_version
 
     if 'book' in tagged:
         books = []
@@ -714,7 +752,7 @@ def search():
     if not query: return redirect('/')
 
     # version parameter should be re-normalized
-    if 'version' in tagged:
+    if version_updated:
         return redirect(url_for('.search') + build_query_suffix(q=query))
 
     with database() as db:
@@ -725,7 +763,8 @@ def search():
 
 @app.route('/<book:book>/')
 def view_book(book):
-    return redirect(url_for('.view_chapter', book=book, chapter=1))
+    normalize_url('.view_book', book=book)
+    return redirect(url_for('.view_chapter', book=book, chapter=1) + build_query_suffix())
 
 @app.route('/<book:book>/<int_or_end:chapter>')
 def view_chapter(book, chapter):
