@@ -318,15 +318,23 @@ class IntOrEndConverter(BaseConverter):
 app.url_map.converters['book'] = BookConverter
 app.url_map.converters['int_or_end'] = IntOrEndConverter
 
-def build_query_suffix(*exclude, **added):
+def build_query_suffix(**repl):
     normalized_version = str(g.version1) + (','+str(g.version2) if g.version2 else '')
+    normalized_cursor = str(g.cursor) if g.cursor is not None else ''
+
     newquery = MultiDict(request.args)
+
     if normalized_version and normalized_version != mappings.DEFAULT_VER:
         newquery['v'] = normalized_version
     else:
         newquery.poplist('v')
-    kvs = [(k, v.encode('utf-8')) for k,v in added.items()]
-    kvs += [(k, v.encode('utf-8')) for k,v in newquery.items(multi=True) if k not in exclude]
+    if normalized_cursor:
+        newquery['c'] = normalized_cursor
+    else:
+        newquery.poplist('c')
+
+    kvs = [(k, v.encode('utf-8')) for k, v in newquery.items(multi=True) if k not in repl]
+    kvs += [(k, str(v).encode('utf-8')) for k, v in repl.items() if v is not None]
     newquery = urllib.urlencode(kvs)
     if newquery:
         return '?' + newquery
@@ -334,6 +342,8 @@ def build_query_suffix(*exclude, **added):
         return ''
 
 def normalize_url(self, **kwargs):
+    # common parameter `v`: version(s)
+    # v=<v1> or v=<v1>,<v2>
     orig_version = request.args.get('v', '')
     v1, _, v2 = orig_version.partition(',')
     try:
@@ -348,7 +358,17 @@ def normalize_url(self, **kwargs):
     normalized_version = str(g.version1) + (','+str(g.version2) if g.version2 else '')
     if normalized_version == mappings.DEFAULT_VER: normalized_version = ''
 
-    need_redirect = (orig_version != normalized_version)
+    # common parameter `c`: cursor
+    # c=<after> or c=<~before>
+    orig_cursor = request.args.get('c', '')
+    try:
+        g.cursor = int(orig_cursor) if len(orig_cursor) <= 6 else None
+    except Exception:
+        g.cursor = None
+    normalized_cursor = str(g.cursor) if g.cursor is not None else ''
+
+    need_redirect = (orig_version != normalized_version or \
+                     orig_cursor != normalized_cursor)
     normalized_kwargs = {}
     for k, v in kwargs.items():
         if isinstance(v, Normalizable):
@@ -362,7 +382,7 @@ def normalize_url(self, **kwargs):
     if need_redirect:
         abort(redirect(url_for(self, **normalized_kwargs) + build_query_suffix()))
 
-def render_verses(tmpl, verses, **kwargs):
+def render_verses(tmpl, (prevc, verses, nextc), **kwargs):
     query = kwargs.get('query', None)
     highlight = kwargs.get('highlight', None)
 
@@ -403,27 +423,67 @@ def render_verses(tmpl, verses, **kwargs):
         tbodys.append({'classes': sclasses, 'verses': rows})
 
     return render_template(tmpl, version1=g.version1, version2=g.version2,
-                           sections=tbodys, **kwargs)
+                           sections=tbodys, prevc=prevc, nextc=nextc, **kwargs)
 
-def execute_verses_query(db, where='1', args=()):
+def execute_verses_query(db, cursor=None, where='1', args=(), count=100):
+    inverted = False
+    if cursor is not None:
+        if cursor >= 0:
+            where += ' and v.ordinal >= ?'
+            args += (cursor,)
+        else:
+            where += ' and v.ordinal <= ?'
+            args += (~cursor,)
+            inverted = True
+
+    limit = ''
+    if count:
+        limit = ' limit ?'
+        args += (count,)
+
     if g.version2:
-        return db.execute('''
+        verses = db.execute('''
             select v.book as "book [book]", v.*, d.text as text, d.markup as markup,
                         d2.text as text2, d2.markup as markup2
             from verses v left outer join data d on d.version=? and v.ordinal=d.ordinal
                           left outer join data d2 on d2.version=? and v.ordinal=d2.ordinal
-            where '''+where+'''
-            order by ordinal asc;
+            where ''' + where + '''
+            order by ordinal ''' + ('desc' if inverted else 'asc') + limit + ''';
         ''', (g.version1, g.version2) + args)
     else:
-        return db.execute('''
+        verses = db.execute('''
             select v.book as "book [book]", v.*, d.text as text, d.markup as markup
             from verses v left outer join data d on d.version=? and v.ordinal=d.ordinal
-            where '''+where+'''
-            order by ordinal asc;
+            where ''' + where + '''
+            order by ordinal ''' + ('desc' if inverted else 'asc') + limit + ''';
         ''', (g.version1,) + args)
 
-def split_by_ordinal(verses, minordinal, maxordinal):
+    verses = verses.fetchall()
+    if inverted: verses.reverse()
+    return verses
+
+def adjust_for_cursor(verses, cursor, count):
+    excess = count and len(verses) > count
+    if cursor is None:
+        nextc = verses.pop().ordinal if excess else None # pop first
+        prevc = None
+    elif cursor >= 0:
+        nextc = verses.pop().ordinal if excess else None # pop first
+        prevc = ~(verses[0].ordinal - 1) if verses and verses[0].ordinal > 0 else None
+    else:
+        prevc = ~verses.pop(0).ordinal if excess else None # pop first
+        nextc = verses[-1].ordinal + 1 if verses else None
+    return prevc, verses, nextc
+
+def get_verses_unbounded(db, where='1', args=(), count=100, **kwargs):
+    verses = execute_verses_query(db, g.cursor, where=where, args=args,
+            count=count+1 if count else None, **kwargs)
+    return adjust_for_cursor(verses, g.cursor, count)
+
+def get_verses_bounded(db, minordinal, maxordinal, where='1', args=(), count=100, **kwargs):
+    verses = execute_verses_query(db, g.cursor, where=where, args=args,
+            count=count+2 if count else None, **kwargs)
+
     smaller = []
     inrange = []
     larger = []
@@ -434,7 +494,20 @@ def split_by_ordinal(verses, minordinal, maxordinal):
             larger.append(row)
         else:
             inrange.append(row)
-    return smaller[-1] if smaller else None, inrange, larger[0] if larger else None
+
+    # cursor code expects at most `count+1` verses.
+    # +2 adjustment was only to account for a non-empty `smaller`, so we no longer need that.
+    del inrange[count+1:]
+
+    # if we have a non-empty `larger`, `inrange` should be the final page.
+    if not larger:
+        prevc, inrange, nextc = adjust_for_cursor(inrange, g.cursor, count)
+        if prevc and ~prevc < minordinal: prevc = None
+    else:
+        prevc = ~(inrange[0].ordinal - 1) if inrange and inrange[0].ordinal > minordinal else None
+        nextc = None
+
+    return smaller[-1] if smaller else None, (prevc, inrange, nextc), larger[0] if larger else None
 
 
 @app.route('/')
@@ -455,7 +528,7 @@ def daily(code=None):
         actualcode = '%02d-%02d' % (today.month, today.day)
     else:
         if len(code) == 5 and code[:2].isdigit() and code[2] == '-' and code[3:].isdigit():
-            actualcode = code 
+            actualcode = code
         else:
             abort(404)
 
@@ -467,10 +540,10 @@ def daily(code=None):
     with database() as db:
         where = ' and '.join(['(v.ordinal between ? and ?)'] * len(daily.ranges))
         args = tuple(bcv.ordinal for start_end in daily.ranges for bcv in start_end)
-        verses = execute_verses_query(db, where, args).fetchall()
+        verses_and_cursors = get_verses_unbounded(db, where, args, count=None)
 
     query = u'' # XXX
-    return render_verses('daily.html', verses, query=query, daily=daily)
+    return render_verses('daily.html', verses_and_cursors, query=query, daily=daily)
 
 @app.route('/search')
 def search():
@@ -634,7 +707,7 @@ def search():
             else:
                 url = url_for('.view_book', book=book)
 
-            return redirect(url + build_query_suffix('q'))
+            return redirect(url + build_query_suffix(q=None))
 
     keywords = tagged.get('keyword', [])
     query = u' '.join(keywords)
@@ -642,13 +715,13 @@ def search():
 
     # version parameter should be re-normalized
     if 'version' in tagged:
-        return redirect(url_for('.search') + build_query_suffix('q', q=query))
+        return redirect(url_for('.search') + build_query_suffix(q=query))
 
     with database() as db:
-        verses = execute_verses_query(db, 'd."text" like ?',
-                ('%%%s%%' % query.strip(),)).fetchall()
+        verses_and_cursors = get_verses_unbounded(db, 'd."text" like ?',
+                ('%%%s%%' % query.strip(),))
 
-    return render_verses('search.html', verses, query=query)
+    return render_verses('search.html', verses_and_cursors, query=query)
 
 @app.route('/<book:book>/')
 def view_book(book):
@@ -664,12 +737,11 @@ def view_chapter(book, chapter):
         abort(404)
 
     with database() as db:
-        verses = execute_verses_query(db, 'v.ordinal between ? and ?',
-                (start.ordinal-1, end.ordinal+1)).fetchall()
-        prev, verses, next = split_by_ordinal(verses, start.ordinal, end.ordinal)
+        prev, verses_and_cursors, next = get_verses_bounded(db, start.ordinal, end.ordinal,
+                'v.ordinal between ? and ?', (start.ordinal-1, end.ordinal+1))
 
     query = u'%s %d' % (book.abbr_ko, start.chapter)
-    return render_verses('chapters.html', verses, query=query, prev=prev, next=next,
+    return render_verses('chapters.html', verses_and_cursors, query=query, prev=prev, next=next,
                          book=book, chapter1=start.chapter, chapter2=end.chapter)
 
 @app.route('/<book:book>/<int_or_end:chapter1>-<int_or_end:chapter2>')
@@ -684,12 +756,11 @@ def view_chapters(book, chapter1, chapter2):
         return redirect(url_for('.view_chapters', book=book, chapter1=chapter2, chapter2=chapter1))
 
     with database() as db:
-        verses = execute_verses_query(db, 'v.ordinal between ? and ?',
-                (start.ordinal-1, end.ordinal+1)).fetchall()
-        prev, verses, next = split_by_ordinal(verses, start.ordinal, end.ordinal)
+        prev, verses_and_cursors, next = get_verses_bounded(db, start.ordinal, end.ordinal,
+                'v.ordinal between ? and ?', (start.ordinal-1, end.ordinal+1))
 
     query = u'%s %d-%d' % (book.abbr_ko, start.chapter, end.chapter)
-    return render_verses('chapters.html', verses, query=query, prev=prev, next=next,
+    return render_verses('chapters.html', verses_and_cursors, query=query, prev=prev, next=next,
                          book=book, chapter1=start.chapter, chapter2=end.chapter)
 
 def do_view_verses(book, start, end, query):
@@ -698,10 +769,10 @@ def do_view_verses(book, start, end, query):
     highlight = lambda b,c,v: bcv1 <= (b,c,v) <= bcv2
 
     with database() as db:
-        verses = execute_verses_query(db, 'v.book=? and v."index" between ? and ?',
-                (book.book, start.index-5, end.index+5)).fetchall()
+        verses_and_cursors = get_verses_unbounded(db, 'v.book=? and v."index" between ? and ?',
+                (book.book, start.index-5, end.index+5))
 
-    return render_verses('verses.html', verses, query=query, highlight=highlight,
+    return render_verses('verses.html', verses_and_cursors, query=query, highlight=highlight,
                          book=book, chapter1=start.chapter, verse1=start.verse,
                          chapter2=end.chapter, verse2=end.verse)
 

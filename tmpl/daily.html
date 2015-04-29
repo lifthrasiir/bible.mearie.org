@@ -5,23 +5,19 @@
 	{{daily.month}}월 {{daily.day}}일에 읽을 성경 말씀은 {{verse_range(daily.start, daily.end)}}입니다.
 </nav>
 <table>
-<thead>
-	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
-		{% with prev = daily.prev %}<a href="{{url_for('.daily', code=prev.code)}}{{build_query_suffix()}}">&uarr; {{prev.month}}월 {{prev.day}}일에 읽었던 성경 말씀으로 가기 </a>{% endwith %}
-	</td></tr>
-</thead>
+{%- call verses_prev(url_for('.daily', code=daily.prev.code) ~ build_query_suffix()) -%}
+	&uarr; {{daily.prev.month}}월 {{daily.prev.day}}일에 읽었던 성경 말씀으로 가기
+{%- endcall %}
 {%- for section in sections %}
 <tbody{{section.classes|classes}}>
-	{%- for row in section.verses %} 
+	{%- for row in section.verses %}
 	{% include "verse_row.html" %}
 	{%- endfor %}
 </tbody>
 {%- endfor %}
-<thead>
-	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
-		{% with next = daily.next %}<a href="{{url_for('.daily', code=next.code)}}{{build_query_suffix()}}">&darr; {{next.month}}월 {{next.day}}일에 읽을 성경 말씀으로 가기 </a>{% endwith %}
-	</td></tr>
-</thead>
+{%- call verses_next(url_for('.daily', code=daily.next.code) ~ build_query_suffix()) -%}
+	&darr; {{daily.next.month}}월 {{daily.next.day}}일에 읽을 성경 말씀으로 가기
+{%- endcall %}
 </table>
 </section>
 {% endblock %}

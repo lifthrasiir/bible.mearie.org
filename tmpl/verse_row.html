@@ -6,6 +6,6 @@
 	{%- if version2 %}
 	<td class="text" lang="{{version2.lang}}">{{row.text2|htmltext(markup=row.markup2, query=query)}}</td>
 	{%- endif %}
-	<td class="links"><a href="{{url_for('.view_verse', book=row.book, chapter=row.chapter, verse=row.verse)}}{{build_query_suffix()}}">#</a></td>
+	<td class="links"><a href="{{url_for('.view_verse', book=row.book, chapter=row.chapter, verse=row.verse)}}{{build_query_suffix(c=none)}}">#</a></td>
 </tr>
 {%- endif %}

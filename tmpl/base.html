@@ -12,15 +12,15 @@
 	<div class="chapters"><strong>{{book.title_ko}}</strong>의 다른 장들:
 		{% with sep = joiner(' ') -%}
 		{%- macro chapters(c1,c2) -%}
-			<a href="{{url_for('.view_chapter', book=book.code, chapter=c1)}}{{build_query_suffix()}}">{{c1}}</a>
+			<a href="{{url_for('.view_chapter', book=book.code, chapter=c1)}}{{build_query_suffix(c=none)}}">{{c1}}</a>
 			{%- if c1+1 < c2+1 -%}
 			{%- if c1+1 < c2 -%}
 			<span class="omissible">{% for c in range(c1+1, c2) -%}
-				{{sep()}}<a href="{{url_for('.view_chapter', book=book.code, chapter=c)}}{{build_query_suffix()}}">{{c}}</a>
+				{{sep()}}<a href="{{url_for('.view_chapter', book=book.code, chapter=c)}}{{build_query_suffix(c=none)}}">{{c}}</a>
 			{%- endfor %}</span>
 			<span class="ellipsis">{{sep()}}&hellip;</span>
 			{%- endif -%}
-			{{sep()}}<a href="{{url_for('.view_chapter', book=book.code, chapter=c2)}}{{build_query_suffix()}}">{{c2}}</a>
+			{{sep()}}<a href="{{url_for('.view_chapter', book=book.code, chapter=c2)}}{{build_query_suffix(c=none)}}">{{c2}}</a>
 			{%- endif -%}
 		{%- endmacro -%}
 		{%- if minchap < chapter1 %}{{sep()}}{{chapters(minchap, chapter1-1)}}{% endif -%}
@@ -29,6 +29,38 @@
 		{%- endwith -%}
 	</div>
 	{%- endwith -%}
+{%- endmacro -%}
+
+{%- macro verses_prev(url) -%}
+<thead>
+	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
+		<a href="{{url}}">{{caller()}}</a>
+	</td></tr>
+</thead>
+{%- endmacro -%}
+
+{%- macro verses_next(url) -%}
+<tfoot>
+	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
+		<a href="{{url}}">{{caller()}}</a>
+	</td></tr>
+</tfoot>
+{%- endmacro -%}
+
+{%- macro verses_prevc_or() -%}
+{%- if prevc -%}
+	{%- call verses_prev(request.base_url ~ build_query_suffix(c=prevc)) %}&uarr; 이전 말씀 보기{% endcall -%}
+{%- else -%}
+	{{caller()}}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- macro verses_nextc_or() -%}
+{%- if nextc -%}
+	{%- call verses_next(request.base_url ~ build_query_suffix(c=nextc)) %}&darr; 다음 말씀 보기{% endcall -%}
+{%- else -%}
+	{{caller()}}
+{%- endif -%}
 {%- endmacro -%}
 
 <!DOCTYPE html>

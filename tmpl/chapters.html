@@ -5,27 +5,27 @@
 	{{other_chapters()}}
 </nav>
 <table>
-{%- if prev %}
-<thead>
-	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
-		<a href="{{url_for('.view_chapter', book=(prev.book|book).code, chapter=prev.chapter)}}{{build_query_suffix()}}">&uarr; {% if book.book == prev.book %}이전{% else %}{{(prev.book|book).title_ko}}의 마지막{% endif %} 장으로 가기</a>
-	</td></tr>
-</thead>
-{%- endif %}
+{%- call verses_prevc_or() %}
+	{%- if prev %}
+	{%- call verses_prev(url_for('.view_chapter', book=(prev.book|book).code, chapter=prev.chapter) ~ build_query_suffix(c=none)) -%}
+		&uarr; {% if book.book == prev.book %}이전{% else %}{{(prev.book|book).title_ko}}의 마지막{% endif %} 장으로 가기
+	{%- endcall %}
+	{%- endif %}
+{%- endcall %}
 {%- for section in sections %}
 <tbody{{section.classes|classes}}>
-	{%- for row in section.verses %} 
+	{%- for row in section.verses %}
 	{% include "verse_row.html" %}
 	{%- endfor %}
 </tbody>
 {%- endfor %}
-{%- if next %}
-<tfoot>
-	<tr class="rowbutton"><td colspan="{{5 if version2 else 4}}">
-		<a href="{{url_for('.view_chapter', book=(next.book|book).code, chapter=next.chapter)}}{{build_query_suffix()}}">&darr; {% if book.book == next.book %}다음{% else %}{{(next.book|book).title_ko}}의 첫{% endif %} 장으로 가기</a>
-	</td></tr>
-</tfoot>
-{%- endif %}
+{%- call verses_nextc_or() %}
+	{%- if next %}
+	{%- call verses_next(url_for('.view_chapter', book=(next.book|book).code, chapter=next.chapter) ~ build_query_suffix(c=none)) -%}
+		&darr; {% if book.book == next.book %}다음{% else %}{{(next.book|book).title_ko}}의 첫{% endif %} 장으로 가기
+	{%- endcall %}
+	{%- endif %}
+{%- endcall %}
 </table>
 <nav>
 	{{other_chapters()}}

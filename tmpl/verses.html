@@ -5,13 +5,15 @@
 	{{other_chapters()}}
 </nav>
 <table class="{{'two-columns' if version2 else 'one-column'}}">
+{%- call verses_prevc_or() %}{% endcall %}
 {%- for section in sections %}
 <tbody{{section.classes|classes}}>
-	{%- for row in section.verses %} 
+	{%- for row in section.verses %}
 	{% include "verse_row.html" %}
 	{%- endfor %}
 </tbody>
 {%- endfor %}
+{%- call verses_nextc_or() %}{% endcall %}
 </table>
 <nav>
 	{{other_chapters()}}
