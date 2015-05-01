@@ -16,7 +16,11 @@ p{margin:.5em}
 dl{margin:0}dl dt{margin:.5em}
 dl dd{margin:.5em .5em .5em 2em}
 a{color:#00f;text-decoration:underline}a:hover,a:active{color:#f00}
-mark{background-color:#ff0;box-shadow:#ff0 0 0 3px}
+mark{background-color:#c0c0c0;box-shadow:#c0c0c0 0 0 3px}mark.keyword0{background-color:#ff0;box-shadow:#ff0 0 0 3px}
+mark.keyword1{background-color:#60ff60;box-shadow:#60ff60 0 0 3px}
+mark.keyword2{background-color:#0ff;box-shadow:#0ff 0 0 3px}
+mark.keyword3{background-color:#ffc040;box-shadow:#ffc040 0 0 3px}
+mark.keyword4{background-color:#ff80ff;box-shadow:#ff80ff 0 0 3px}
 section{display:block}section.leftside{width:49%;float:left;margin-right:1%;border-right:1px solid #808080;padding-top:1px;padding-bottom:1px;background:#eef}
 section.rightside{margin-left:49%;border-left:1px solid #808080;padding-top:1px;padding-bottom:1px;background:#efe}
 .search{margin:2%}.search input{font-size:200%;width:99%}

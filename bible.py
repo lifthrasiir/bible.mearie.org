@@ -26,34 +26,39 @@ def filter_book(v):
     return mappings.books[v]
 
 @app.template_filter('htmltext')
-def filter_htmltext(s, markup=None, query=None):
+def filter_htmltext(s, markup=None, keywords=None):
     if not s: return u''
+    slower = s.lower()
 
     if markup is not None:
         markup = map(ord, markup)
     else:
         markup = [0] * len(s)
 
+    kwmark = [None] * len(s)
+
     # flags:
     # 1 -- Capitalized
     # 2 -- UPPERCASED
     # 128 -- italicized (artificial text in KJV)
-    # 256 -- highlighted
 
-    # add a pseudo markup flag (256) for query highlighting
-    if query:
+    # add pseudo keyword marks for query highlighting
+    # marks are added in reverse, so the earlier keyword overwrites others.
+    for k, keyword in list(enumerate(keywords or ()))[::-1]:
+        keyword = keyword.lower()
         pos = -1
         while True:
-            pos = s.find(query, pos+1)
+            pos = slower.find(keyword, pos+1)
             if pos < 0: break
-            for i in xrange(pos, pos+len(query)):
-                markup[i] |= 256
+            for i in xrange(pos, pos+len(keyword)):
+                kwmark[i] = k
 
     ss = []
     cur = []
     prevflags = 0
-    for ch, flags in zip(s, markup) + [(u'', None)]:
-        if flags is None or flags != prevflags:
+    prevmark = None
+    for ch, flags, mark in zip(s, markup, kwmark) + [(u'', None, None)]:
+        if flags is None or (flags, mark) != (prevflags, prevmark):
             ss.append(Markup().join(cur))
             cur = []
 
@@ -63,9 +68,9 @@ def filter_htmltext(s, markup=None, query=None):
             flags = flags or 0
             changed = (prevflags ^ flags)
             cascade = False
-            if cascade or changed & 256:
-                if prevflags & 256: closing.append(Markup('</mark>'))
-                if flags & 256: opening.append(Markup('<mark>'))
+            if cascade or mark != prevmark:
+                if prevmark is not None: closing.append(Markup('</mark>'))
+                if mark is not None: opening.append(Markup('<mark class="keyword%d">' % mark))
                 cascade = True
             if cascade or changed & 128:
                 if prevflags & 128: closing.append(Markup('</i>'))
@@ -81,6 +86,7 @@ def filter_htmltext(s, markup=None, query=None):
                 cascade = True
 
             prevflags = flags
+            prevmark = mark
             ss.extend(closing[::-1])
             ss.extend(opening)
 
@@ -748,18 +754,19 @@ def search():
             return redirect(url + build_query_suffix(q=None))
 
     keywords = tagged.get('keyword', [])
-    query = u' '.join(keywords)
-    if not query: return redirect('/')
+    if not keywords: return redirect('/')
+    keywords = OrderedDict.fromkeys(map(unicode.lower, keywords)).keys() # zap duplicates
 
     # version parameter should be re-normalized
     if version_updated:
         return redirect(url_for('.search') + build_query_suffix(q=query))
 
     with database() as db:
-        verses_and_cursors = get_verses_unbounded(db, 'd."text" like ?',
-                ('%%%s%%' % query.strip(),))
+        verses_and_cursors = get_verses_unbounded(db,
+                ' and '.join(['d."text" like ?'] * len(keywords)),
+                tuple('%%%s%%' % keyword for keyword in keywords))
 
-    return render_verses('search.html', verses_and_cursors, query=query)
+    return render_verses('search.html', verses_and_cursors, query=query, keywords=keywords)
 
 @app.route('/<book:book>/')
 def view_book(book):
