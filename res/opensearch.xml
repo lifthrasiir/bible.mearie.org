@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+	<ShortName>메아리 성경</ShortName>
+	<Description>메아리 성경으로 성경 말씀을 찾습니다.</Description>
+	<Contact>public+bible@mearie.org</Contact>
+	<Url type="text/html" template="http://bible.mearie.org/search?q={searchTerms}" />
+	<Language>ko</Language>
+	<InputEncoding>UTF-8</InputEncoding>
+	<OutputEncoding>UTF-8</OutputEncoding>
+</OpenSearchDescription>
