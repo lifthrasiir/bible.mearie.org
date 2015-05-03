@@ -603,7 +603,7 @@ def search():
                         # lexeme with optional tag (foo, v:asdf, "a b c", book:'x y z' etc.)
                         # a row of letters and digits does not mix (e.g. 창15 -> 창, 15)
                         ur'(?:(' + u'|'.join(map(re.escape, TAGS)) + ur'):)?'
-                            ur'(?:"([^"]*)"|\'([^\']*)\'|([^\W\d]+|\d+))', query):
+                            ur'(?:"([^"]*)"|\'([^\']*)\'|((?:[^\W\d]|[\-\'])+|\d+))', query):
         if m[0]:
             chap1, _, verse1 = m[0].partition(u':')
             chap1 = int(chap1)
@@ -688,7 +688,7 @@ def search():
         elif tag == 'keyword':
             if all(u'가' <= c <= u'힣' for c in value):
                 implied_lang.add('ko')
-            elif all(u'a' <= c <= 'z' or u'A' <= c <= u'Z' for c in value):
+            elif all(not c.isalpha() or u'a' <= c <= 'z' or u'A' <= c <= u'Z' for c in value):
                 implied_lang.add('en')
 
     if len(implied_lang) == 1:
@@ -755,7 +755,16 @@ def search():
 
     keywords = tagged.get('keyword', [])
     if not keywords: return redirect('/')
-    keywords = OrderedDict.fromkeys(map(unicode.lower, keywords)).keys() # zap duplicates
+    uniqwords = OrderedDict((w.lower(), w) for w in keywords) # zap duplicates
+
+    # for reconstructed queries, we need to insert quotes as needed.
+    # we also have to preserve cases while removing duplicates...
+    keywords = uniqwords.keys()
+    query = u' '.join(u'"%s"' % w if w.startswith("'") or
+                                     any(not c.isalpha() and not c.isdigit() and
+                                         c != '-' and c != "'" for c in w) else
+                      u"'%s'" % w if w.startswith("'") else
+                      w for w in uniqwords.values())
 
     # version parameter should be re-normalized
     if version_updated:
