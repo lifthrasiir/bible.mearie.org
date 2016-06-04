@@ -1,6 +1,7 @@
 # coding=utf-8
 import json
 import csv
+import os
 import sys
 import sqlite3
 import bz2
@@ -9,7 +10,7 @@ import glob
 def normalize(s):
     return u''.join(s.split()).upper()
 
-def main():
+def main(out='db/bible.db'):
     versions = []
     versionaliases = {}
     path = 'data/versions.json'
@@ -142,9 +143,10 @@ def main():
         for ordinal1, ordinal2 in filter(None, ordranges):
             topics.append(('daily', code, ordinal1, ordinal2))
 
-
     print >>sys.stderr, 'committing...'
-    conn = sqlite3.connect('bible.db')
+    try: os.makedirs(os.path.dirname(out))
+    except Exception: pass
+    conn = sqlite3.connect(out)
     conn.executescript('''
         create table if not exists versions(
             version text not null primary key,
@@ -204,4 +206,6 @@ def main():
     conn.executemany('insert into topics(kind,code,ordinal1,ordinal2) values(?,?,?,?);', topics)
     conn.commit()
 
-main()
+if __name__ == '__main__':
+    main(*sys.argv[1:2])
+

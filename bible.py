@@ -124,7 +124,7 @@ class Entry(sqlite3.Row):
 
 @contextmanager
 def database():
-    db = sqlite3.connect('bible.db', detect_types=sqlite3.PARSE_COLNAMES)
+    db = sqlite3.connect('db/bible.db', detect_types=sqlite3.PARSE_COLNAMES)
     db.row_factory = Entry
     try:
         yield db
