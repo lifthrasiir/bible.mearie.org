@@ -1,4 +1,4 @@
-[bible.mearie.org](http://bible.mearie.org/)
+[bible.mearie.org](https://bible.mearie.org/)
 ============================================
 
 This is a simplistic Holy Bible website hosted by [mearie.org](http://mearie.org/).
