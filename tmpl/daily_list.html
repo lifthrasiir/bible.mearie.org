@@ -7,7 +7,7 @@
 	{%- for dailyrow in dailygroup|batch(5) %}
 	<tr>
 		{%- if loop.first %}
-		<th rowspan="{{loop.length+1}}">{{month}}월</th>
+		<th rowspan="{{(dailygroup|length + 4)//5}}">{{month}}월</th>
 		{%- endif -%}
 		{%- for d in dailyrow -%}
 		{%- with (start, end) = (d.start, d.end) %}
