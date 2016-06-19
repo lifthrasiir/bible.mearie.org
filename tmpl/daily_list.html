@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block view %}
+<h2>매일 성경 읽기</h2>
+<p>메아리 매일 성경 읽기 표는 1년 361일에 매일 대략 60~100절 분량(20~30분)의 성경 말씀을 읽을 수 있도록 되어 있습니다. 나머지 4~5일은 여유분으로 사용하시길 바랍니다.</p>
+<table class="daily-list">
+{%- for month, dailygroup in dailylist|groupby('month') -%}
+	{%- for dailyrow in dailygroup|batch(5) %}
+	<tr>
+		{%- if loop.first %}
+		<th rowspan="{{loop.length+1}}">{{month}}월</th>
+		{%- endif -%}
+		{%- for d in dailyrow -%}
+		{%- with (start, end) = (d.start, d.end) %}
+		<td{% if d.code == daily.code %} class="today"{% endif %}><a href="{{url_for('.daily', code=d.code)}}">{{d.day}}일</a> <small>
+		{%- if start.verse == start.min_verse_in_chapter and end.verse == end.max_verse_in_chapter -%}
+		{{(start.book|book).abbr_ko}} {{start.chapter}}&ndash;
+		{%- if start.book != end.book %}{{(end.book|book).abbr_ko}} {% endif -%}
+		{{end.chapter}}
+		{%- else -%}
+		{{(start.book|book).abbr_ko}} {{start.chapter}}:{{start.verse}}&ndash;
+		{%- if start.book != end.book %}{{(end.book|book).abbr_ko}} {% endif -%}
+		{%- if start.book_and_chapter != end.book_and_chapter %}{{end.chapter}}:{% endif -%}
+		{{end.verse}}
+		{%- endif -%}
+		</small></td>
+		{%- endwith -%}
+		{%- endfor %}
+	</tr>
+	{%- endfor -%}
+{%- endfor -%}
+</table>
+{% endblock %}

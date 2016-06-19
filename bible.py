@@ -243,7 +243,11 @@ class Mappings(object):
 mappings = Mappings()
 @app.context_processor
 def inject_mappings():
-    return {'mappings': mappings, 'build_query_suffix': build_query_suffix}
+    return {
+        'debug': app.debug,
+        'mappings': mappings,
+        'build_query_suffix': build_query_suffix,
+    }
 
 _triple = namedtuple('triple', 'book chapter verse index ordinal')
 class triple(_triple):
@@ -270,6 +274,16 @@ class triple(_triple):
     def book_and_chapter(self):
         return (self.book, self.chapter)
 
+    @property
+    def min_verse_in_chapter(self):
+        minverse, maxverse, deltaindex, deltaordinal = mappings.verseranges[self.book, self.chapter]
+        return minverse
+
+    @property
+    def max_verse_in_chapter(self):
+        minverse, maxverse, deltaindex, deltaordinal = mappings.verseranges[self.book, self.chapter]
+        return maxverse
+
 class Daily(object):
     def __init__(self, index):
         code, ranges = mappings.dailyranges[index]
@@ -285,6 +299,10 @@ class Daily(object):
     @property
     def end(self):
         return self.ranges[-1][1]
+
+    @property
+    def num_verses(self):
+        return sum(e.ordinal - s.ordinal + 1 for s, e in self.ranges)
 
     @property
     def prev(self):
@@ -557,6 +575,13 @@ def daily(code=None):
 
     query = u'' # XXX
     return render_verses('daily.html', verses_and_cursors, query=query, daily=daily)
+
+@app.route('/+/daily/list')
+def daily_list():
+    today = datetime.date.today()
+    daily = mappings.get_recent_daily('%02d-%02d' % (today.month, today.day))
+    dailylist = map(Daily, xrange(len(mappings.dailyranges)))
+    return render_template('daily_list.html', query=u'', daily=daily, dailylist=dailylist)
 
 @app.route('/search')
 def search():

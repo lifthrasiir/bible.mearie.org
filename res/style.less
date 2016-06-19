@@ -126,6 +126,15 @@ a {
 	}
 }
 
+small {
+	font-size: 80%;
+}
+
+code {
+	color: #222;
+	border-bottom: 1px dashed gray;
+}
+
 mark {
 	background-color: #c0c0c0;
 	box-shadow: #c0c0c0 0 0 3px;
@@ -273,6 +282,32 @@ section {
 
 		.highlight {
 			border: 0.15em solid #f00;
+		}
+	}
+}
+
+table.daily-list {
+	width: 100%;
+	margin: 0.5em 0;
+	border-collapse: collapse;
+
+	th {
+		vertical-align: top;
+		width: 2em;
+		border-right: 0.2em solid hsl(@site-hue, 50%, 50%);
+		text-align: right;
+		padding: 0.1em 0.5em;
+		white-space: nowrap;
+	}
+
+	td {
+		vertical-align: top;
+		width: 19%;
+		padding: 0.1em 0.5em;
+		small { font-size: 60%; }
+		&.today {
+			background-color: #ffff00;
+			box-shadow: #ffff00 0 0 3px;
 		}
 	}
 }
