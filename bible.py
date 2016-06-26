@@ -900,6 +900,9 @@ def compile_less():
             subprocess.call(['lessc', '-x', entrypoint, combined])
 
 if __name__ == '__main__':
-    app.debug = True
-    app.run('0.0.0.0', int(sys.argv[1]) if len(sys.argv) > 1 else 5000)
+    import os
+    from flask.cli import main
+    os.environ['FLASK_APP'] = __file__
+    os.environ['FLASK_DEBUG'] = '1'
+    main(as_module=True)
 
