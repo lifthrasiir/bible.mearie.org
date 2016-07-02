@@ -1,4 +1,5 @@
 TAG=lifthrasiir/bible.mearie.org
+NAME=bible.mearie.org
 PORT=48003
 
 .PHONY: all
@@ -13,9 +14,8 @@ docker:
 
 .PHONY: run
 run: db/bible.db docker
-	docker run -d -p ${PORT}:9000 -v /home/yurume/sites/bible.mearie.org/db:/var/uwsgi/db ${TAG}
-
-.PHONY: kill
-kill:
-	ID=$$(docker ps -f ancestor=${TAG} -q); [ -z "$$ID" ] || docker stop $$ID
+	-docker rm ${NAME}-old
+	-docker rename ${NAME} ${NAME}-old && docker stop ${NAME}-old
+	docker run -d -p ${PORT}:9000 -v /home/yurume/sites/bible.mearie.org/db:/var/uwsgi/db --name=${NAME} ${TAG}
+	-docker rm ${NAME}-old
 
