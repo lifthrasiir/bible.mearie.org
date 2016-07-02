@@ -16,6 +16,6 @@ docker:
 run: db/bible.db docker
 	-docker rm ${NAME}-old
 	-docker rename ${NAME} ${NAME}-old && docker stop ${NAME}-old
-	docker run -d -p ${PORT}:9000 -v /home/yurume/sites/bible.mearie.org/db:/var/uwsgi/db --name=${NAME} ${TAG}
+	docker run -d -p 127.0.0.1:${PORT}:9000 -v /home/yurume/sites/bible.mearie.org/db:/var/uwsgi/db --name=${NAME} ${TAG}
 	-docker rm ${NAME}-old
 
