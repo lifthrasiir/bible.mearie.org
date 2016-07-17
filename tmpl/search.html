@@ -18,7 +18,7 @@
 </form>
 </nav>
 <table class="{{'two-columns' if version2 else 'one-column'}}">
-{%- call verses_prevc_or() %}{% endcall %}
+{%- call verses_prevc_or(_searching=true) %}{% endcall %}
 {%- for section in sections %}
 <tbody{{section.classes|classes}}>
 	{%- for row in section.verses %}
@@ -26,7 +26,7 @@
 	{%- endfor %}
 </tbody>
 {%- endfor %}
-{%- call verses_nextc_or() %}{% endcall %}
+{%- call verses_nextc_or(_searching=true) %}{% endcall %}
 </table>
 </section>
 {% endblock %}

@@ -26,21 +26,28 @@ def filter_book(v):
     return mappings.books[v]
 
 @app.template_filter('htmltext')
-def filter_htmltext(s, markup=None, keywords=None):
+def filter_htmltext(s, meta=None, keywords=None):
     if not s: return u''
     slower = s.lower()
 
-    if markup is not None:
-        markup = map(ord, markup)
+    if meta is not None:
+        extra = bytes(meta).split('\xff')
+        markup = map(ord, extra[0])
+        assert len(markup) == len(s) or len(markup) == len(s) + 1
     else:
+        extra = []
         markup = [0] * len(s)
 
     kwmark = [None] * len(s)
 
     # flags:
-    # 1 -- Capitalized
-    # 2 -- UPPERCASED
-    # 128 -- italicized (artificial text in KJV)
+    # * 127 (bit mask)
+    #     0 -- normal
+    #     1 -- italicized (artificial text in KJV)
+    #     2 -- Capitalized
+    #     3 -- UPPERCASED
+    # * 128 (bit mask) -- will fetch the annotation from the extra *before* this
+    # * 255 -- separators for markup
 
     # add pseudo keyword marks for query highlighting
     # marks are added in reverse, so the earlier keyword overwrites others.
@@ -55,37 +62,46 @@ def filter_htmltext(s, markup=None, keywords=None):
 
     ss = []
     cur = []
-    prevflags = 0
+    prevstyle = 0
     prevmark = None
-    for ch, flags, mark in zip(s, markup, kwmark) + [(u'', None, None)]:
-        if flags is None or (flags, mark) != (prevflags, prevmark):
+    nextann = 1 # since extra[0] == markup (if any)
+    lastflags = None
+    if len(markup) > len(s): # there are len(s)+1 positions where annotated text can go
+        lastflags = markup.pop()
+        assert (lastflags & 127) == 0 # annotated text only
+
+    for ch, flags, mark in zip(s, markup, kwmark) + [(u'', lastflags, None)]:
+        flags = flags or 0
+        style = flags & 127
+
+        if flags & 128:
+            ss.append(Markup().join(cur))
+            ss.append(Markup('<small>%s</small>') % extra[nextann].decode('utf-8'))
+            cur = []
+            nextann += 1
+
+        if not ch or (style, mark) != (prevstyle, prevmark):
             ss.append(Markup().join(cur))
             cur = []
 
             closing = []
             opening = []
 
-            flags = flags or 0
-            changed = (prevflags ^ flags)
             cascade = False
             if cascade or mark != prevmark:
                 if prevmark is not None: closing.append(Markup('</mark>'))
                 if mark is not None: opening.append(Markup('<mark class="keyword%d">' % mark))
                 cascade = True
-            if cascade or changed & 128:
-                if prevflags & 128: closing.append(Markup('</i>'))
-                if flags & 128: opening.append(Markup('<i>'))
-                cascade = True
-            if cascade or changed & 2:
-                if prevflags & 2: closing.append(Markup('</strong>'))
-                if flags & 2: opening.append(Markup('<strong>'))
-                cascade = True
-            if cascade or changed & 1:
-                if prevflags & 1: closing.append(Markup('</em>'))
-                if flags & 1: opening.append(Markup('<em>'))
+            if cascade or style != prevstyle:
+                if prevstyle:
+                    closing.append(Markup(('', '</i>', '</em>', '</strong>',
+                                           '</small>')[prevstyle]))
+                if style:
+                    opening.append(Markup(('', '<i>', '<em>', '<strong>',
+                                           '<small>')[style]))
                 cascade = True
 
-            prevflags = flags
+            prevstyle = style
             prevmark = mark
             ss.extend(closing[::-1])
             ss.extend(opening)
@@ -350,12 +366,16 @@ app.url_map.converters['book'] = BookConverter
 app.url_map.converters['int_or_end'] = IntOrEndConverter
 
 def build_query_suffix(**repl):
+    searching = repl.pop('_searching', False)
+
     normalized_version = str(g.version1) + (','+str(g.version2) if g.version2 else '')
     normalized_cursor = str(g.cursor) if g.cursor is not None else ''
 
     newquery = MultiDict(request.args)
 
-    if normalized_version and normalized_version != mappings.DEFAULT_VER:
+    # unlike others, search may reset `v` (and try to redirect) according to the query,
+    # but if the explicit `v` is set it should NOT alter that.
+    if normalized_version and (searching or normalized_version != mappings.DEFAULT_VER):
         newquery['v'] = normalized_version
     else:
         newquery.poplist('v')
@@ -373,6 +393,8 @@ def build_query_suffix(**repl):
         return ''
 
 def normalize_url(self, **kwargs):
+    searching = kwargs.pop('_searching', False)
+
     # common parameter `v`: version(s)
     # v=<v1> or v=<v1>,<v2>
     orig_version = request.args.get('v', '')
@@ -387,7 +409,8 @@ def normalize_url(self, **kwargs):
     except Exception:
         g.version2 = None
     normalized_version = str(g.version1) + (','+str(g.version2) if g.version2 else '')
-    if normalized_version == mappings.DEFAULT_VER: normalized_version = ''
+    # same caveat to build_query_suffix applies for the searching.
+    if not searching and normalized_version == mappings.DEFAULT_VER: normalized_version = ''
 
     # common parameter `c`: cursor
     # c=<after> or c=<~before>
@@ -411,11 +434,24 @@ def normalize_url(self, **kwargs):
             normalized_kwargs[k] = str(v).encode('utf-8')
 
     if need_redirect:
-        abort(redirect(url_for(self, **normalized_kwargs) + build_query_suffix()))
+        abort(redirect(url_for(self, **normalized_kwargs) +
+                       build_query_suffix(_searching=searching)))
+
+    # when we are not searching, we also parse and store (but do not normalize) `q`.
+    # this is a subset of search query syntax; the search procedure will produce
+    # a reconstructed list of normalized "keywords", and the syntax should match.
+    if not searching:
+        query = request.args.get('q', '').strip()
+        keywords = []
+        for m in re.findall(ur'(?ui)(?:"([^"]*)"|\'([^\']*)\'|((?:[^\W\d]|[\-\'])+))', query):
+            keyword = m[0] or m[1] or m[2]
+            if keyword: keywords.append(keyword)
+        g.keywords = keywords
 
 def render_verses(tmpl, (prevc, verses, nextc), **kwargs):
     query = kwargs.get('query', None)
     highlight = kwargs.get('highlight', None)
+    if 'keywords' not in kwargs: kwargs['keywords'] = g.keywords
 
     prev = None
     prevhl = False
@@ -431,7 +467,7 @@ def render_verses(tmpl, (prevc, verses, nextc), **kwargs):
             prevhl = hl
 
         text = verse['text']
-        markup = verse['markup']
+        meta = verse['meta']
         prefix = u''
         vclasses = []
         if (verse['book'], verse['chapter'], verse['verse']-1) == prev:
@@ -443,9 +479,9 @@ def render_verses(tmpl, (prevc, verses, nextc), **kwargs):
             'verse': verse['verse'],
             'prefix': prefix,
             'text': text,
-            'markup': markup,
+            'meta': meta,
             'text2': verse['text2'] if 'text2' in verse.keys() else None,
-            'markup2': verse['markup2'] if 'markup2' in verse.keys() else None,
+            'meta2': verse['meta2'] if 'meta2' in verse.keys() else None,
         })
         prev = (verse['book'], verse['chapter'], verse['verse'])
     if rows:
@@ -474,8 +510,8 @@ def execute_verses_query(db, cursor=None, where='1', args=(), count=100):
 
     if g.version2:
         verses = db.execute('''
-            select v.book as "book [book]", v.*, d.text as text, d.markup as markup,
-                        d2.text as text2, d2.markup as markup2
+            select v.book as "book [book]", v.*, d.text as text, d.meta as meta,
+                        d2.text as text2, d2.meta as meta2
             from verses v left outer join data d on d.version=? and v.ordinal=d.ordinal
                           left outer join data d2 on d2.version=? and v.ordinal=d2.ordinal
             where ''' + where + '''
@@ -483,7 +519,7 @@ def execute_verses_query(db, cursor=None, where='1', args=(), count=100):
         ''', (g.version1, g.version2) + args)
     else:
         verses = db.execute('''
-            select v.book as "book [book]", v.*, d.text as text, d.markup as markup
+            select v.book as "book [book]", v.*, d.text as text, d.meta as meta
             from verses v left outer join data d on d.version=? and v.ordinal=d.ordinal
             where ''' + where + '''
             order by ordinal ''' + ('desc' if inverted else 'asc') + limit + ''';
@@ -585,10 +621,10 @@ def daily_list():
 
 @app.route('/search')
 def search():
-    query = request.args['q'].strip()
+    query = request.args.get('q', u'').strip()
     if not query: return redirect('/')
 
-    normalize_url('.search')
+    normalize_url('.search', _searching=True)
 
     # search syntax:
     # - lexemes are primarily separated (and ordered) by non-letter characters.
@@ -793,7 +829,7 @@ def search():
 
     # version parameter should be re-normalized
     if version_updated:
-        return redirect(url_for('.search') + build_query_suffix(q=query))
+        return redirect(url_for('.search') + build_query_suffix(q=query, _searching=True))
 
     with database() as db:
         verses_and_cursors = get_verses_unbounded(db,

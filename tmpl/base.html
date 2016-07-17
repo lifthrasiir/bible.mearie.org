@@ -47,17 +47,17 @@
 </tfoot>
 {%- endmacro -%}
 
-{%- macro verses_prevc_or() -%}
+{%- macro verses_prevc_or(_searching=false) -%}
 {%- if prevc -%}
-	{%- call verses_prev(request.base_url ~ build_query_suffix(c=prevc)) %}&uarr; 이전 말씀 보기{% endcall -%}
+	{%- call verses_prev(request.base_url ~ build_query_suffix(c=prevc, _searching=_searching)) %}&uarr; 이전 말씀 보기{% endcall -%}
 {%- else -%}
 	{{caller()}}
 {%- endif -%}
 {%- endmacro -%}
 
-{%- macro verses_nextc_or() -%}
+{%- macro verses_nextc_or(_searching=false) -%}
 {%- if nextc -%}
-	{%- call verses_next(request.base_url ~ build_query_suffix(c=nextc)) %}&darr; 다음 말씀 보기{% endcall -%}
+	{%- call verses_next(request.base_url ~ build_query_suffix(c=nextc, _searching=_searching)) %}&darr; 다음 말씀 보기{% endcall -%}
 {%- else -%}
 	{{caller()}}
 {%- endif -%}
